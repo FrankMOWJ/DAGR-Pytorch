@@ -63,7 +63,7 @@ if __name__ == '__main__':
     for i in range(1, Cds.max_num_iter+1):
         # run a round of DL
         print(f'Epoch: {i}')
-        DL() #! DL() --> DecentralizedLearning.__call__() --> 一轮迭代过程
+        DL(i) #! DL() --> DecentralizedLearning.__call__() --> 一轮迭代过程
         
        # eval models  
         if i % Cds.eval_interval == 0 and i: #! eval_interval: 25 --> 每25个iteration进行一次evaluation
