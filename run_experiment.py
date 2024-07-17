@@ -63,10 +63,6 @@ if __name__ == '__main__':
     print("Training ....")
     for i in tqdm(range(1, Cds.max_num_iter+1)):
         # run a round of DL
-<<<<<<< Updated upstream
-        print(f'Epoch: {i}')
-=======
->>>>>>> Stashed changes
         DL(i) #! DL() --> DecentralizedLearning.__call__() --> 一轮迭代过程
         
        # eval models  
