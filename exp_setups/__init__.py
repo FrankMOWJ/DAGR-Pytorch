@@ -13,7 +13,7 @@ USER = user.User
 ATTACKER = attacker_agrevader.Agrevader_v2
 G = None
 
-DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+DEVICE = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 print("DEVICE: ", DEVICE)
 
 # learning-rate scheduler steps to reach consensus (it may vary based on the topology)  

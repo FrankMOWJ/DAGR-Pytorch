@@ -7,7 +7,7 @@ import torch
 
 def load_dataset_classification(dataset_name, split='train', transform=None):
     dataset = datasets.__dict__[dataset_name]
-    data = dataset('./dataset', train=(split == 'train'), download=True, transform=transform)
+    data = dataset('~/.torch', train=(split == 'train'), download=True, transform=transform)
     size = len(data)
     num_class = len(data.classes)
     x_shape = data[0][0].shape
@@ -132,8 +132,8 @@ def setup_model(
 # Setting up the CIFAR-10 dataset
 def load_cifar10():
     transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-    train_data = datasets.CIFAR10(root='./dataset', train=True, download=True, transform=transform)
-    val_data = datasets.CIFAR10(root='./dataset', train=False, download=True, transform=transform)
+    train_data = datasets.CIFAR10(root='~/.torch', train=True, download=True, transform=transform)
+    val_data = datasets.CIFAR10(root='~/.torch', train=False, download=True, transform=transform)
     train_size = len(train_data)
     val_size = len(val_data)
     num_class = 10

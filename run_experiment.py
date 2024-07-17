@@ -2,6 +2,7 @@ import os, sys, importlib
 
 from DL_attacks.utils import EarlyStopping, setup_data, setup_model
 from DL_attacks.logger import Logger
+from tqdm import tqdm
 
 if __name__ == '__main__':
     
@@ -60,14 +61,18 @@ if __name__ == '__main__':
     
     ## Main training loop
     print("Training ....")
-    for i in range(1, Cds.max_num_iter+1):
+    for i in tqdm(range(1, Cds.max_num_iter+1)):
         # run a round of DL
+<<<<<<< Updated upstream
         print(f'Epoch: {i}')
+=======
+>>>>>>> Stashed changes
         DL(i) #! DL() --> DecentralizedLearning.__call__() --> 一轮迭代过程
         
        # eval models  
         if i % Cds.eval_interval == 0 and i: #! eval_interval: 25 --> 每25个iteration进行一次evaluation
             # logs privacy risk (slow operation)
+            # print(f'Epoch: {i}')
             score = logr(i) #! logr(i) --> Logger.__call__() --> 计算并记录utility, consensus和privacy
             
             # checks for early stopping

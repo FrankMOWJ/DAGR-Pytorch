@@ -43,7 +43,7 @@ As we said, *run_experiment.py* is the main. This takes as input:
 For instance,
 
 ```
-py run_experiment.py exp_setups.CIFAR10 exp_setups.torus36 0
+python run_experiment.py exp_setups.CIFAR10 exp_setups.torus36 0
 ```
 
 runs decentralized learning on CIFAR10 with a torus topology (36 users). At the end of the training, it should write in *./results* a file named *0-cifar10-torus36* that contains all the logged information. Results can be then visualized via the notebook *plot_privacy_attacks_passive.ipynb*. The notebook aggregates multiple runs and plots averaged results.

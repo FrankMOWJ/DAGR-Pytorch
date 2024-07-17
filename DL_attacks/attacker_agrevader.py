@@ -18,7 +18,7 @@ def shuffle_labels(victim_set):
     shuffled_dataset = TensorDataset(inputs, shuffled_labels)
     return DataLoader(shuffled_dataset, batch_size=100, shuffle=True)
 
-    
+  
 class Agrevader_v2(Attacker):
     def __init__(self, name, make_model, train_set, cover_set, device):
         """
@@ -152,6 +152,66 @@ class Agrevader_v2(Attacker):
         com_param = agg_div(com_param, 2)
         return com_param
 
+    def get_max_neigh_norm_diff(self):
+        max_neigh_norm_diff = 0.0
+        neigh_params_list = []
+        for neigh_name, params in self.model_update_buffer.items():
+            params = flat_tensor_list(params)
+            params = torch.tensor(params)
+            neigh_params_list.append(params)
+        
+        for i in range(len(neigh_params_list)):
+            for j in range(i + 1, len(neigh_params_list)):
+                norm_diff = torch.norm(neigh_params_list[i] - neigh_params_list[j])
+                if norm_diff > max_neigh_norm_diff:
+                    max_neigh_norm_diff = norm_diff
+        return max_neigh_norm_diff
+
+    def get_max_neigh_unitnorm_diff(self):
+        max_neigh_unitnorm_diff = 0.0
+        neigh_params_list = []
+        for neigh_name, params in self.model_update_buffer.items():
+            params = flat_tensor_list(params)
+            params = torch.tensor(params)
+            neigh_params_list.append(params)
+        
+        for i in range(len(neigh_params_list)):
+            for j in range(i + 1, len(neigh_params_list)):
+                unit_param_i = neigh_params_list[i] / torch.norm(neigh_params_list[i])
+                unit_param_j = neigh_params_list[j] / torch.norm(neigh_params_list[j])
+                unitnorm_diff = torch.norm(unit_param_i - unit_param_j)
+                if unitnorm_diff > max_neigh_unitnorm_diff:
+                    max_neigh_unitnorm_diff = unitnorm_diff
+        return max_neigh_unitnorm_diff
+
+    def get_angle(self, param_i, param_j):
+        if isinstance(param_i, np.ndarray):
+            param_i = torch.from_numpy(param_i)
+        if isinstance(param_j, np.ndarray):
+            param_j = torch.from_numpy(param_j)
+        
+        dot_product = torch.dot(param_i, param_j)
+        norm_i = torch.norm(param_i)
+        norm_j = torch.norm(param_j)
+        cos_theta = dot_product / (norm_i * norm_j)
+        theta = torch.acos(cos_theta)
+        theta_degrees = torch.rad2deg(theta)
+        
+        return theta_degrees.item()
+
+    def get_max_neigh_angle_diff(self):
+        max_neigh_angle_diff = 0.0
+        neigh_params_list = []
+        for neigh_name, params in self.model_update_buffer.items():
+            params = flat_tensor_list(params)
+            params = torch.tensor(params)
+            neigh_params_list.append(params)
+        
+        for i in range(len(neigh_params_list)):
+            for j in range(i + 1, len(neigh_params_list)):
+                theta_degrees = self.get_angle(neigh_params_list[i], neigh_params_list[j])
+                max_neigh_angle_diff = max(max_neigh_angle_diff, theta_degrees)
+        return max_neigh_angle_diff
 
     def get_best_attack_params(self, w_victim):
         """
@@ -163,36 +223,47 @@ class Agrevader_v2(Attacker):
         Returns:
             List[torch.Tensor]: The best attack parameters.
         """
+        # print('start findig best attack params')
         best_attack_params = None
-        self.times = 1
+        self.times = 5
         # max_neigh_diff = self.get_max_neigh_norm_diff()
-        max_neigh_diff = 100.0
+        # max_neigh_diff = self.get_max_neigh_unitnorm_diff()
+        max_neigh_diff = self.get_max_neigh_angle_diff()
+        # max_neigh_diff = 5.0
         while self.times:
             self.times -= 1
             cur_cover_set = self.get_random_coverset()
             w_cur_cover = self.get_cover_w(cur_cover_set)
             cur_attack_param = self.combine_vic_cov(w_victim, w_cur_cover)
-            cur_attack_param_flat = torch.cat([p.view(-1) for p in cur_attack_param])
-            neigh_params_list = [torch.cat([p.view(-1) for p in params]) for params in self.model_update_buffer.values()]
-            max_attacker_neigh_diff = max(torch.norm(neigh_param - cur_attack_param_flat) for neigh_param in neigh_params_list)
-
+            # cur_attack_param_flat = torch.cat([p.view(-1) for p in cur_attack_param])
+            # neigh_params_list = [torch.cat([p.view(-1) for p in params]) for params in self.model_update_buffer.values()]
+            cur_attack_param_flat = flat_tensor_list(cur_attack_param)
+            neigh_params_list = [flat_tensor_list(params) for params in self.model_update_buffer.values()]
+            # norm 
+            # max_attacker_neigh_diff = max(torch.norm(neigh_param - cur_attack_param_flat) for neigh_param in neigh_params_list)
+            # unit norm
+            # max_attacker_neigh_diff = max(torch.norm(neigh_param / torch.norm(neigh_param) - cur_attack_param_flat / torch.norm(cur_attack_param_flat)) for neigh_param in neigh_params_list)
+            # angle
+            max_attacker_neigh_diff = max(self.get_angle(neigh_param, cur_attack_param_flat) for neigh_param in neigh_params_list)
             if max_attacker_neigh_diff < max_neigh_diff:
-                if best_attack_params is None or torch.norm(torch.cat([p.view(-1) for p in best_attack_params])) < torch.norm(cur_attack_param_flat):
+                if best_attack_params is None or torch.norm(torch.cat([p.view(-1) for p in best_attack_params])) < torch.norm(torch.cat([p.view(-1) for p in cur_attack_param])):
                     best_attack_params = cur_attack_param
 
         if best_attack_params is None:
-            # return [(p / torch.norm(p.view(-1))) for p in cur_attack_param]
-            return cur_attack_param
+            # print('have not find best attack params!')
+            return [(p / torch.norm(p.view(-1))) for p in cur_attack_param]
+            # return cur_attack_param
         else:
-            # return [(p / torch.norm(p.view(-1))) for p in best_attack_params]
-            return best_attack_params
+            print(f'find best attack params!, neigh diff: {max_neigh_diff}, attacker neigh diff: {max_attacker_neigh_diff}')
+            return [(p / torch.norm(p.view(-1))) for p in best_attack_params]
+            # return best_attack_params
 
-    def get_best_attack_params(self, w_victim):
-        cur_cover_set = self.get_random_coverset()
-        w_cur_cover = self.get_cover_w(cur_cover_set)
-        cur_attack_param = self.combine_vic_cov(w_victim, w_cur_cover)
+    # def get_best_attack_params(self, w_victim):
+    #     cur_cover_set = self.get_random_coverset()
+    #     w_cur_cover = self.get_cover_w(cur_cover_set)
+    #     cur_attack_param = self.combine_vic_cov(w_victim, w_cur_cover)
         
-        return cur_attack_param
+    #     return cur_attack_param
         
     def evaluate_attack_result(self):
         """
@@ -229,7 +300,7 @@ class Agrevader_v2(Attacker):
         self.attack_result.append(result)
         print("————————————————————————————————————————")
         print(result)
-        with open("attack_result.csv", "a") as f:
+        with open(f"attack_result_cifar10_torus36_angle_unit.csv", "a") as f:
             f.write(str(result) + "\n")
         print("————————————————————————————————————————")
 
@@ -259,6 +330,7 @@ class Agrevader_v2(Attacker):
         
         # cur_cover_set = self.get_random_coverset()
         # w_cur_cover = self.get_cover_w(cur_cover_set)
+
 
     def get_model_update(self):
         """

@@ -91,7 +91,6 @@ class DecentralizedLearning:
            
     #! 一轮迭代过程
     def __call__(self, epoch): 
-        global cnt
         """ Exucutes one round: local training + communication + aggregation for every user """
         
         # get model updates
@@ -111,7 +110,7 @@ class DecentralizedLearning:
                     
                     
         # attacker acts after everyone else (only for active attacks, when needed)
-        if epoch % 50 == 0:
+        if epoch % 25 == 0:
             self.attacker.evaluate_attack_result()
         self.attacker.train()  
         mu = self.attacker.get_model_update() #! mu是攻击者新的模型参数
