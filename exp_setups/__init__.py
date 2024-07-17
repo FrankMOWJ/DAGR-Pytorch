@@ -4,7 +4,11 @@ import random
 import torch
 
 # where to save logs
-output_dir = './results-agrevader' #TODO: change to 'results-agrevader'
+melitious_rate = 2.5
+num_attack_user = 1 # 2
+is_neigh = True
+output_dir = './results-agrevader' 
+log_name = f'_MelitousRate{melitious_rate}_numAttack{num_attack_user}_isNeigh{is_neigh}.txt'
 
 # Graph topology
 CDL = DL.DecentralizedLearning
@@ -34,7 +38,7 @@ init_lr = .1
 # patience early stopping
 patience = 10
 # when to run MIAs
-eval_interval = 50
+eval_interval = 5
 # is it federated learning?
 federated = False
         

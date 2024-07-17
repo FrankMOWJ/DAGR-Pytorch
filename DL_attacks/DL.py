@@ -110,8 +110,6 @@ class DecentralizedLearning:
                     
                     
         # attacker acts after everyone else (only for active attacks, when needed)
-        if epoch % 25 == 0:
-            self.attacker.evaluate_attack_result()
         self.attacker.train()  
         mu = self.attacker.get_model_update() #! mu是攻击者新的模型参数
         self.attacker.model_update_buffer[self.attacker.name] = mu #! 保存攻击者的模型参数

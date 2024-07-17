@@ -43,6 +43,7 @@ class Agrevader_v2(Attacker):
         self.victim = self.neighbors
 
         self.attack_result = []
+        self.result = None
         self.model_update_buffer = {}
         self.window_model_update_buffer = [None, None]
         self.window_local_model = [None, None]
@@ -251,19 +252,12 @@ class Agrevader_v2(Attacker):
 
         if best_attack_params is None:
             # print('have not find best attack params!')
-            return [(p / torch.norm(p.view(-1))) for p in cur_attack_param]
-            # return cur_attack_param
+            # return [(p / torch.norm(p.view(-1))) for p in cur_attack_param]
+            return cur_attack_param
         else:
-            print(f'find best attack params!, neigh diff: {max_neigh_diff}, attacker neigh diff: {max_attacker_neigh_diff}')
-            return [(p / torch.norm(p.view(-1))) for p in best_attack_params]
-            # return best_attack_params
-
-    # def get_best_attack_params(self, w_victim):
-    #     cur_cover_set = self.get_random_coverset()
-    #     w_cur_cover = self.get_cover_w(cur_cover_set)
-    #     cur_attack_param = self.combine_vic_cov(w_victim, w_cur_cover)
-        
-    #     return cur_attack_param
+            # print(f'find best attack params!, neigh diff: {max_neigh_diff}, attacker neigh diff: {max_attacker_neigh_diff}')
+            # return [(p / torch.norm(p.view(-1))) for p in best_attack_params]
+            return best_attack_params
         
     def evaluate_attack_result(self):
         """
@@ -297,12 +291,13 @@ class Agrevader_v2(Attacker):
         attack_recall = true_member / (true_member + false_nonmember)
         result = (attack_accuracy, attack_precision, attack_recall)
 
-        self.attack_result.append(result)
-        print("————————————————————————————————————————")
-        print(result)
-        with open(f"attack_result_cifar10_torus36_angle_unit.csv", "a") as f:
-            f.write(str(result) + "\n")
-        print("————————————————————————————————————————")
+        self.result = result
+        # self.attack_result.append(result)
+        # print("————————————————————————————————————————")
+        # print(result)
+        # with open(f"attack_result_cifar10_torus36_angle_unit.csv", "a") as f:
+        #     f.write(str(result) + "\n")
+        # print("————————————————————————————————————————")
 
     def compute_loss(self, x, y, model, training=True):
         """
