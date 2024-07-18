@@ -1,4 +1,4 @@
-from torch.utils.data import Dataset, DataLoader, random_split, TensorDataset, ConcatDataset
+from torch.utils.data import Dataset, DataLoader, random_split, TensorDataset, ConcatDataset, Subset
 from torchvision import datasets, transforms
 import numpy as np
 import functools
@@ -13,7 +13,7 @@ def load_dataset_classification(dataset_name, split='train', transform=None):
     x_shape = data[0][0].shape
     return data, x_shape, num_class, size
 
-def make_uniform_dataset_users(data, num_users=1, local_dataset_size=10000):
+def make_uniform_dataset_users(data, num_users=1, local_dataset_size=10000) -> list[TensorDataset]:
     data_loader = DataLoader(data, batch_size=local_dataset_size, shuffle=True)
     datasets = []
     for i, (x, y) in enumerate(data_loader):
@@ -22,11 +22,10 @@ def make_uniform_dataset_users(data, num_users=1, local_dataset_size=10000):
         datasets.append(user_data)
     return datasets
 
-def get_attack_member_set(data, num_member):
-    data_loader = DataLoader(data, shuffle=True, batch_size=num_member)
-    for x, y in data_loader:
-        member_set = TensorDataset(x, y)
-        break
+def get_attack_member_set(data, target_user_id=1, num_member=500):
+    target_data = data[target_user_id-1]
+    indices = torch.randperm(len(target_data))[:num_member]
+    member_set = Subset(target_data, indices)
     return member_set
 
 def get_cover_set(data, cover_set_sz):
@@ -46,7 +45,7 @@ def get_attack_non_member_set(data, num):
 def Change2TensorDataset(concateDataset):
     all_data = []
     for dataset in concateDataset.datasets:
-        # 假设每个 dataset 是 TensorDataset 类型
+        # 每个 dataset 是 TensorDataset 类型
         data = list(dataset)
         all_data.extend(data)
 
@@ -64,8 +63,8 @@ def setup_data(
     batch_size,
     size_testset,
     type_partition,
-    num_members=500,
-    num_non_members=500,
+    num_member=500,
+    num_non_member=500,
     num_cover=1000
 ):
     train_data, val_data, x_shape, num_class = load_dataset_fn()
@@ -75,18 +74,17 @@ def setup_data(
 
     test_set = make_uniform_dataset_users(val_data, 1, size_testset)[0]
 
-    non_member_set = get_attack_non_member_set(val_data, num_non_members)
-
-    mem_set = get_attack_member_set(train_data, num_members)
-    # print(f'mem set type: {type(mem_set)}')
+    non_member_set = get_attack_non_member_set(val_data, num_non_member)
 
     if type_partition == 0:
         train_sets = make_uniform_dataset_users(train_data, num_users - 1, size_local_ds)
+        mem_set = get_attack_member_set(train_sets, target_user_id=1, num_member=num_member)
         train_sets = [DataLoader(train_set, batch_size=batch_size) for train_set in train_sets]
         attacker_set = ConcatDataset([mem_set, non_member_set])
         # attacker_set = DataLoader(Change2TensorDataset(attacker_set), batch_size=batch_size)
         attacker_set = Change2TensorDataset(attacker_set)
-        print(f'attacker dataloader size (member + non-member): {len(attacker_set)}')
+        assert len(attacker_set) == num_member + num_non_member, 'attacker dataset generation fail'
+        print(f'attacker member set: {num_member}, non-member set: {num_non_member}')
         train_sets = [attacker_set] + train_sets
     else:
         raise Exception()
