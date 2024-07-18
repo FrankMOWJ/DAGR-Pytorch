@@ -111,11 +111,11 @@ class DecentralizedLearning:
                     
         # attacker acts after everyone else (only for active attacks, when needed)
         self.attacker.train()  
-        mu = self.attacker.get_model_update() #! mu是攻击者新的模型参数
+        mu = self.attacker.get_model_update(epoch) #! mu是攻击者新的模型参数
         self.attacker.model_update_buffer[self.attacker.name] = mu #! 保存攻击者的模型参数
         for v in self.attacker.neighbors:
             # 复制一份当前的参数出来
-            mu = self.attacker.get_model_update()
+            mu = self.attacker.get_model_update(epoch)
             v.check_model(self.attacker.name, mu)
             v.model_update_buffer[self.attacker.name] = mu
         
@@ -135,7 +135,7 @@ class DecentralizedLearning:
             self.global_model = deepCopyModel(self.attacker.model)
             self.global_model = self.global_model.to(self.device)
             
-        # init weights to 0s
+        # init weights to 0
         global_vars = init_list_variables(self.attacker.model)
             
         # do not consider the attaker when active

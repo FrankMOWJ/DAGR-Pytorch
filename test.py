@@ -124,78 +124,71 @@ if __name__ == "__main__":
     output_shape = 10
     init_lr = 0.1
     step_slr = [25]
+    num_user = 20
     # model, criterion, optimizer, scheduler, eval_metrics = resnet20(input_shape, output_shape, init_lr, step_slr)
-    model1, criterion1, optimizer1, scheduler1, eval_metrics1 = make_model()
-    optimizer1 = optimizer1(model1)
-    scheduler1 = scheduler1(optimizer1)
-    model2, criterion2, optimizer2, scheduler2, eval_metrics2 = make_model()
-    optimizer2 = optimizer2(model2)
-    scheduler2 = scheduler2(optimizer2)
-    model1 = model1.cuda()
-    model2 = model2.cuda()
-    global_model = deepCopyModel(model1).cuda()
+    users = []
+    for i in range(num_user):
+        model, criterion, optimizer, scheduler, eval_metrics = make_model()
+        optimizer = optimizer(model)
+        scheduler = scheduler(optimizer)
+        model = model.cuda()
+        users.append((model, criterion, optimizer, scheduler, eval_metrics))
+        
+    global_model = deepCopyModel(users[0][0]).cuda()
     # 训练和测试函数
     def train(epoch):
-        model1.train()
-        running_loss = 0.0
-        for batch_idx, (inputs, targets) in enumerate(train_sets[1]):
-            inputs, targets = inputs.cuda(), targets.cuda()
-            optimizer1.zero_grad()
-            outputs = model1(inputs)
-            loss = criterion1(outputs, targets)
-            loss.backward()
-            optimizer1.step()
-            running_loss += loss.item()
-            if batch_idx % 10 == 0:  # 每 100 个 iter 打印一次
-                print(f'user 1 Epoch [{epoch + 1}], Step [{batch_idx + 1}], Loss: {running_loss / 100:.4f}')
-                running_loss = 0.0
-        
-        model2.train()
-        running_loss = 0.0
-        for batch_idx, (inputs, targets) in enumerate(train_sets[2]):
-            inputs, targets = inputs.cuda(), targets.cuda()
-            optimizer2.zero_grad()
-            outputs = model2(inputs)
-            loss = criterion2(outputs, targets)
-            loss.backward()
-            optimizer2.step()
-            running_loss += loss.item()
-            if batch_idx % 10 == 0:  # 每 100 个 iter 打印一次
-                print(f'user 2 Epoch [{epoch + 1}], Step [{batch_idx + 1}], Loss: {running_loss / 100:.4f}')
-                running_loss = 0.0
-        
+        for idx, (model, criterion, optimizer, scheduler, eval_metrics) in enumerate(users):
+            model.train()
+            running_loss = 0.0
+            for batch_idx, (inputs, targets) in enumerate(train_sets[idx+1]):
+                inputs, targets = inputs.cuda(), targets.cuda()
+                optimizer.zero_grad()
+                outputs = model(inputs)
+                loss = criterion(outputs, targets)
+                loss.backward()
+                optimizer.step()
+                running_loss += loss.item()
+                if batch_idx % 10 == 0:  # 每 100 个 iter 打印一次
+                    # print(f'user {idx+1} Epoch [{epoch + 1}], Step [{batch_idx + 1}], Loss: {running_loss / 100:.4f}')
+                    running_loss = 0.0
+            scheduler.step()
 
-    def test(model):
-        
-        # global_model_param = agg_sum_param(model1, model2)
-        # global_model_param = agg_div_param(global_model_param, 2.0)
-        
-        # for p, op in zip(global_model.parameters(), global_model_param):
-        #     p.data = op
-            
-        # global_model.eval()
-        model.eval()
+    def test(epoch):
+        # for idx, (model, criterion, optimizer, scheduler, eval_metrics) in enumerate(users):
+        global_model.eval()
         correct = 0.0
         with torch.no_grad():
             for inputs, targets in test_set:
                 inputs, targets = inputs.cuda(), targets.cuda()
-                outputs = model(inputs)
+                outputs = global_model(inputs)
                 correct += binary_accuracy(targets, outputs)
-        print(f'Accuracy: {100 * correct / len(test_set):.2f}%')
+        print(f'Global model Accuracy: {100 * correct / len(test_set):.2f}%')
+        
+        user_model = users[0][0]
+        correct = 0.0
+        with torch.no_grad():
+            for inputs, targets in test_set:
+                inputs, targets = inputs.cuda(), targets.cuda()
+                outputs = user_model(inputs)
+                correct += binary_accuracy(targets, outputs)
+        print(f'user model Accuracy: {100 * correct / len(test_set):.2f}%')
+        
 
     # 训练循环
     num_epochs = 50
     for epoch in range(num_epochs):
         train(epoch)
-        global_model_param = agg_sum_param(model1, model2)
-        global_model_param = agg_div_param(global_model_param, 2.0)
-        for p, op in zip(model1.parameters(), global_model_param):
-            p.data = op
-        for p, op in zip(model2.parameters(), global_model_param):
-            p.data = op
-        test(model1)
-        test(model2)
-        scheduler1.step()
-        scheduler2.step()
+        global_model_param = init_list_variables(users[0][0])
+        for i in range(num_user):
+            param_i = [p.data.clone() for p in users[i][0].parameters()]
+            global_model_param = agg_sum(global_model_param, param_i)
+        global_model_param = agg_div(global_model_param, num_user)
 
+        for i in range(num_user):
+            for p, op in zip(users[i][0].parameters(), global_model_param):
+                p.data = op
+        for p, op in zip(global_model.parameters(), global_model_param):
+                p.data = op
+                
+        test(epoch)
     print("Finished Training")

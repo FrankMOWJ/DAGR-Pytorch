@@ -21,7 +21,7 @@ DEVICE = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 print("DEVICE: ", DEVICE)
 
 # learning-rate scheduler steps to reach consensus (it may vary based on the topology)  
-lrd = [300, 400, 500]
+lrd = [200, 300, 400]
     
 # maximum number of training iterations 
 max_num_iter = 1000
@@ -38,7 +38,7 @@ init_lr = .1
 # patience early stopping
 patience = 10
 # when to run MIAs
-eval_interval = 5
+eval_interval = 25
 # is it federated learning?
 federated = False
         

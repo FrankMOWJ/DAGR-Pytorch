@@ -77,6 +77,13 @@ def agg_div(A, alpha):
         C[i] = A[i] / alpha
     return C
 
+def agg_mul(A, alpha):
+    n = len(A)
+    C = [None] * n
+    for i in range(n):
+        C[i] = A[i] * alpha
+    return C
+
 def agg_neg(A):
     n = len(A)
     C = [None] * n

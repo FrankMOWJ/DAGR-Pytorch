@@ -151,6 +151,7 @@ class Agrevader_v2(Attacker):
         """
         com_param = agg_sum(w_victim, w_cover)
         com_param = agg_div(com_param, 2)
+        # com_param = agg_sum(agg_mul(w_victim, 0.3), agg_mul(w_cover, 0.7))
         return com_param
 
     def get_max_neigh_norm_diff(self):
@@ -327,7 +328,7 @@ class Agrevader_v2(Attacker):
         # w_cur_cover = self.get_cover_w(cur_cover_set)
 
 
-    def get_model_update(self):
+    def get_model_update(self, epoch):
         """
         Get the model update for the given user.
 
@@ -337,43 +338,45 @@ class Agrevader_v2(Attacker):
         Returns:
             List[tf.Tensor]: The attack parameters.
         """
-        var = self.attack_param
-        # var = self.w_cover
+        if epoch < 100:
+            var = self.w_cover
+        else:
+            var = self.attack_param
         var = clone_list_tensors(var)
         return var
 
 
-    def update(self):
-        """ Update state based on received model updates (except the attacker model) """
+    # def update(self):
+    #     """ Update state based on received model updates (except the attacker model) """
         
-        nups = len(self.model_update_buffer) - 1
-        new_theta = [torch.zeros_like(param) for param in self.model.parameters()]
+    #     nups = len(self.model_update_buffer) - 1
+    #     new_theta = [torch.zeros_like(param) for param in self.model.parameters()]
 
-        num_neigh = 0
-        for user_name, theta in self.model_update_buffer.items():
-            if user_name == self.name:
-                continue
-            num_neigh += 1
-            for i, param in enumerate(theta):
-                new_theta[i] += param
-        assert num_neigh == nups, f'aggregate error {num_neigh} vs. {nups}'
-        new_theta = agg_div_param(new_theta, nups)
+    #     num_neigh = 0
+    #     for user_name, theta in self.model_update_buffer.items():
+    #         if user_name == self.name:
+    #             continue
+    #         num_neigh += 1
+    #         for i, param in enumerate(theta):
+    #             new_theta[i] += param
+    #     assert num_neigh == nups, f'aggregate error {num_neigh} vs. {nups}'
+    #     new_theta = agg_div_param(new_theta, nups)
         
-        # logging
-        if self.window_model_update_buffer[1] is None:
-            self.window_model_update_buffer[0] = None
-        else:
-            self.window_model_update_buffer[0] = self.window_model_update_buffer[1].copy()
-        self.window_model_update_buffer[1] = self.model_update_buffer.copy()
+    #     # logging
+    #     if self.window_model_update_buffer[1] is None:
+    #         self.window_model_update_buffer[0] = None
+    #     else:
+    #         self.window_model_update_buffer[0] = self.window_model_update_buffer[1].copy()
+    #     self.window_model_update_buffer[1] = self.model_update_buffer.copy()
         
-        # set new params for local model
-        for param, new_param in zip(self.model.parameters(), new_theta):
-            param.data = new_param
+    #     # set new params for local model
+    #     for param, new_param in zip(self.model.parameters(), new_theta):
+    #         param.data = new_param
         
-        # logging
-        self.window_local_model[0] = self.window_local_model[1]
-        self.window_local_model[1] = [param.data.clone() for param in self.model.parameters()]
-        self.iter += 1
+    #     # logging
+    #     self.window_local_model[0] = self.window_local_model[1]
+    #     self.window_local_model[1] = [param.data.clone() for param in self.model.parameters()]
+    #     self.iter += 1
 
 
 
