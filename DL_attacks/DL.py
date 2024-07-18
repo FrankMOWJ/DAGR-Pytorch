@@ -230,7 +230,7 @@ class DecentralizedLearning:
 #Pre-defined top. -------------------------------------------------------------------------------------
     
 # k正则图
-class Regular(DecentralizedLearning):
+class Regular15(DecentralizedLearning):
     def setup(
         self,
         n_users,
@@ -242,10 +242,42 @@ class Regular(DecentralizedLearning):
         attacker,
         device
     ):
-        G = nx.random_regular_graph(3, n_users, seed=0)
+        G = nx.random_regular_graph(15, n_users, seed=0) #! 30_15: 0号的neighbor为 1, 4, 5, 7, 8, 10, 12, 15, 20, 21, 22, 23, 25, 26, 29
         DecentralizedLearning.from_nx_graph(self, G, make_model, train_sets, test_set, cover_set, user, attacker, device, shuffle=False)
-        
-        
+
+
+class Regular20(DecentralizedLearning):
+    def setup(
+        self,
+        n_users,
+        make_model,
+        train_sets,
+        test_set,
+        cover_set,
+        user,
+        attacker,
+        device
+    ):
+        G = nx.random_regular_graph(20, n_users, seed=0) #! 40_20: 0号的neighbor为 1, 4, 6, 9, 16, 17, 18, 19, 20, 21, 22, 24, 25, 27, 28, 32, 33, 34, 36, 38
+        DecentralizedLearning.from_nx_graph(self, G, make_model, train_sets, test_set, cover_set, user, attacker, device, shuffle=False)
+   
+   
+class Regular25(DecentralizedLearning):
+    def setup(
+        self,
+        n_users,
+        make_model,
+        train_sets,
+        test_set,
+        cover_set,
+        user,
+        attacker,
+        device
+    ):
+        G = nx.random_regular_graph(25, n_users, seed=0) #! 50_25: 0号的neighbor为 1, 2, 3, 6, 7, 10, 12, 13, 15, 18, 19, 20, 23, 25, 28, 30, 31, 32, 33, 34, 35, 38, 39, 43, 44
+        DecentralizedLearning.from_nx_graph(self, G, make_model, train_sets, test_set, cover_set, user, attacker, device, shuffle=False)
+             
+
 # 环图
 class Ring(DecentralizedLearning):
     def setup(
@@ -322,3 +354,4 @@ class Random(DecentralizedLearning):
         
         G = nx.erdos_renyi_graph(n_users, 0.1, seed=0)
         DecentralizedLearning.from_nx_graph(self, G, make_model, train_sets, test_set, cover_set, user, attacker, device, shuffle=False)
+        
