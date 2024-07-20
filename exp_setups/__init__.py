@@ -7,8 +7,22 @@ import torch
 melitious_rate = 2.5
 num_attack_user = 1 # 2
 is_neigh = True
+
+setting = 's1'
+'''
+    s1	1 neighbour target 
+    s2	1 non-neighbour target
+    s3	2 neighbour targets
+    s4	2 non-neighbour targets
+    s5	1 neigh 1 non-neigh targets
+    s6	FL
+'''
+attack_type = 'unitnorm' # norm, unitnorm, angle
+defense_type = 'trim1' # none, trimX, median
+
 output_dir = './results-agrevader' 
-log_name = f'_MelitousRate{melitious_rate}_numAttack{num_attack_user}_isNeigh{is_neigh}.txt'
+# log_name = f'_MelitousRate{melitious_rate}_numAttack{num_attack_user}_isNeigh{is_neigh}.txt'
+log_name = f'_xnumAttack={num_attack_user}_{setting}_{attack_type}_{defense_type}.txt'
 
 # Graph topology
 CDL = DL.DecentralizedLearning

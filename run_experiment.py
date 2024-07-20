@@ -26,7 +26,8 @@ if __name__ == '__main__':
     log_file_path = os.path.join(Ctop.output_dir, log_name)
     
     # other metric logger 
-    name = f'{run_num}-{Cds.dsk}-{Ctop.name}' #TODO
+    # name = f'{run_num}-{Cds.dsk}-{Ctop.name}' #TODO
+    name = f'{Ctop.name}_xnumAttack={Ctop.num_attack_user}_{Ctop.setting}_{Ctop.attack_type}_{Ctop.defense_type}' #TODO
     output_file = os.path.join(Cds.output_dir, name)
     print(f"Logging file in --> {output_file}")
     
