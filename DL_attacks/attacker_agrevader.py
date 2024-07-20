@@ -228,9 +228,11 @@ class Agrevader_v2(Attacker):
         # print('start findig best attack params')
         best_attack_params = None
         self.times = 5
+        
         # max_neigh_diff = self.get_max_neigh_norm_diff()
-        # max_neigh_diff = self.get_max_neigh_unitnorm_diff()
-        max_neigh_diff = self.get_max_neigh_angle_diff()
+        max_neigh_diff = self.get_max_neigh_unitnorm_diff()
+        # max_neigh_diff = self.get_max_neigh_angle_diff()
+        
         # max_neigh_diff = 5.0
         while self.times:
             self.times -= 1
@@ -241,12 +243,18 @@ class Agrevader_v2(Attacker):
             # neigh_params_list = [torch.cat([p.view(-1) for p in params]) for params in self.model_update_buffer.values()]
             cur_attack_param_flat = flat_tensor_list(cur_attack_param)
             neigh_params_list = [flat_tensor_list(params) for params in self.model_update_buffer.values()]
+            
+            # transfer to tensor
+            neigh_params_list = [torch.from_numpy(neigh_param) for neigh_param in neigh_params_list]
+            cur_attack_param_flat = torch.from_numpy(cur_attack_param_flat)
+            
             # norm 
             # max_attacker_neigh_diff = max(torch.norm(neigh_param - cur_attack_param_flat) for neigh_param in neigh_params_list)
             # unit norm
             # max_attacker_neigh_diff = max(torch.norm(neigh_param / torch.norm(neigh_param) - cur_attack_param_flat / torch.norm(cur_attack_param_flat)) for neigh_param in neigh_params_list)
             # angle
             max_attacker_neigh_diff = max(self.get_angle(neigh_param, cur_attack_param_flat) for neigh_param in neigh_params_list)
+            
             if max_attacker_neigh_diff < max_neigh_diff:
                 if best_attack_params is None or torch.norm(torch.cat([p.view(-1) for p in best_attack_params])) < torch.norm(torch.cat([p.view(-1) for p in cur_attack_param])):
                     best_attack_params = cur_attack_param
