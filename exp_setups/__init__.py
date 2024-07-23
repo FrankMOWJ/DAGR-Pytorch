@@ -3,6 +3,12 @@ from DL_attacks import model, user, attacker, DL, attacker_agrevader, utils #TOD
 import random
 import torch
 
+# 设置随机种子
+seed = 42
+torch.manual_seed(seed)
+np.random.seed(seed)
+random.seed(seed)
+
 # where to save logs
 melitious_rate = 2.5
 num_attack_user = 1 # 2
@@ -30,6 +36,10 @@ USER = user.User
 # ATTACKER = attacker.Attacker #TODO: add attacker_agrevader
 ATTACKER = attacker_agrevader.Agrevader_v2
 G = None
+
+num_member = 500
+num_non_member = 500
+num_cover = 1000
 
 DEVICE = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 print("DEVICE: ", DEVICE)

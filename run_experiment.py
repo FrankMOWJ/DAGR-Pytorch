@@ -44,7 +44,9 @@ if __name__ == '__main__':
         size_local_ds,
         Cds.batch_size,
         Cds.size_testset,
-        Cds.type_partition
+        Cds.type_partition,
+        Ctop.num_member, Ctop.num_non_member, Ctop.num_cover,
+        Ctop.setting
     )
 
     # setup model generator function
@@ -84,8 +86,8 @@ if __name__ == '__main__':
             attack_acc_logger(i)
             # checks for early stopping
             # if es(i, score): #! es(i, score) --> EarlyStopping.__call__() --> 检查是否需要early stop
-            #     print("\tEarly stop!")
-            #     break
+                # print("\tEarly stop!")
+                # break
             
             # save current logs
             logr.dump() #! logr.dump() --> Logger.dump() --> 保存当前的logs

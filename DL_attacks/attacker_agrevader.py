@@ -41,7 +41,7 @@ class Agrevader_v2(Attacker):
         self.scheduler = self.sheduler_fn(self.opt)
         
         self.victim = self.neighbors
-
+        
         self.attack_result = []
         self.result = None
         self.model_update_buffer = {}
@@ -62,7 +62,8 @@ class Agrevader_v2(Attacker):
 
     def split_train_set(self, train_set):
         """
-        Split the training dataset into member and non-member sets.
+        Split the training dataset into member and non-member sets. 
+        the number of sample the two sets have is equal.
 
         Args:
             train_set (TensorDataset): The training dataset.
@@ -138,7 +139,7 @@ class Agrevader_v2(Attacker):
         self.w_cover = w_cover
         return w_cover
 
-    def combine_vic_cov(self, w_victim, w_cover):
+    def combine_vic_cov(self, w_victim, w_cover, ratio=0.5):
         """
         Combine the victim and cover weights.
 
@@ -149,9 +150,9 @@ class Agrevader_v2(Attacker):
         Returns:
             List[torch.Tensor]: The combined weights.
         """
-        com_param = agg_sum(w_victim, w_cover)
-        com_param = agg_div(com_param, 2)
-        # com_param = agg_sum(agg_mul(w_victim, 0.3), agg_mul(w_cover, 0.7))
+        # com_param = agg_sum(w_victim, w_cover)
+        # com_param = agg_div(com_param, 2)
+        com_param = agg_sum(agg_mul(w_victim, ratio), agg_mul(w_cover, 1-ratio))
         return com_param
 
     def get_max_neigh_norm_diff(self):
@@ -165,8 +166,7 @@ class Agrevader_v2(Attacker):
         for i in range(len(neigh_params_list)):
             for j in range(i + 1, len(neigh_params_list)):
                 norm_diff = torch.norm(neigh_params_list[i] - neigh_params_list[j])
-                if norm_diff > max_neigh_norm_diff:
-                    max_neigh_norm_diff = norm_diff
+                max_neigh_norm_diff = max(max_neigh_norm_diff, norm_diff)
         return max_neigh_norm_diff
 
     def get_max_neigh_unitnorm_diff(self):
@@ -182,8 +182,7 @@ class Agrevader_v2(Attacker):
                 unit_param_i = neigh_params_list[i] / torch.norm(neigh_params_list[i])
                 unit_param_j = neigh_params_list[j] / torch.norm(neigh_params_list[j])
                 unitnorm_diff = torch.norm(unit_param_i - unit_param_j)
-                if unitnorm_diff > max_neigh_unitnorm_diff:
-                    max_neigh_unitnorm_diff = unitnorm_diff
+                max_neigh_unitnorm_diff = max(max_neigh_unitnorm_diff, unitnorm_diff)
         return max_neigh_unitnorm_diff
 
     def get_angle(self, param_i, param_j):
@@ -225,7 +224,6 @@ class Agrevader_v2(Attacker):
         Returns:
             List[torch.Tensor]: The best attack parameters.
         """
-        # print('start findig best attack params')
         best_attack_params = None
         self.times = 5
         
@@ -233,7 +231,6 @@ class Agrevader_v2(Attacker):
         max_neigh_diff = self.get_max_neigh_unitnorm_diff()
         # max_neigh_diff = self.get_max_neigh_angle_diff()
         
-        # max_neigh_diff = 5.0
         while self.times:
             self.times -= 1
             cur_cover_set = self.get_random_coverset()
@@ -251,9 +248,9 @@ class Agrevader_v2(Attacker):
             # norm 
             # max_attacker_neigh_diff = max(torch.norm(neigh_param - cur_attack_param_flat) for neigh_param in neigh_params_list)
             # unit norm
-            # max_attacker_neigh_diff = max(torch.norm(neigh_param / torch.norm(neigh_param) - cur_attack_param_flat / torch.norm(cur_attack_param_flat)) for neigh_param in neigh_params_list)
+            max_attacker_neigh_diff = max(torch.norm(neigh_param / torch.norm(neigh_param) - cur_attack_param_flat / torch.norm(cur_attack_param_flat)) for neigh_param in neigh_params_list)
             # angle
-            max_attacker_neigh_diff = max(self.get_angle(neigh_param, cur_attack_param_flat) for neigh_param in neigh_params_list)
+            # max_attacker_neigh_diff = max(self.get_angle(neigh_param, cur_attack_param_flat) for neigh_param in neigh_params_list)
             
             if max_attacker_neigh_diff < max_neigh_diff:
                 if best_attack_params is None or torch.norm(torch.cat([p.view(-1) for p in best_attack_params])) < torch.norm(torch.cat([p.view(-1) for p in cur_attack_param])):
@@ -327,7 +324,7 @@ class Agrevader_v2(Attacker):
         """
         Train the model and perform the attack.
         """
-        # self.evaluate_attack_result()
+
         w_victim = self.get_victim_w()
         attack_param = self.get_best_attack_params(w_victim)
         self.attack_param = attack_param

@@ -5,19 +5,11 @@ import functools
 from copy import deepcopy
 import torch
 
-def load_dataset_classification(dataset_name, split='train', transform=None):
-    dataset = datasets.__dict__[dataset_name]
-    data = dataset('~/.torch', train=(split == 'train'), download=True, transform=transform)
-    size = len(data)
-    num_class = len(data.classes)
-    x_shape = data[0][0].shape
-    return data, x_shape, num_class, size
-
 def make_uniform_dataset_users(data, num_users=1, local_dataset_size=10000) -> list[TensorDataset]:
     data_loader = DataLoader(data, batch_size=local_dataset_size, shuffle=True)
     datasets = []
     for i, (x, y) in enumerate(data_loader):
-        if i > num_users: break
+        if i >= num_users: break
         user_data = TensorDataset(x, y)
         datasets.append(user_data)
     return datasets
@@ -65,7 +57,8 @@ def setup_data(
     type_partition,
     num_member=500,
     num_non_member=500,
-    num_cover=1000
+    num_cover=1000,
+    setting='s1'
 ):
     train_data, val_data, x_shape, num_class = load_dataset_fn()
 
@@ -78,13 +71,34 @@ def setup_data(
 
     if type_partition == 0:
         train_sets = make_uniform_dataset_users(train_data, num_users - 1, size_local_ds)
-        mem_set = get_attack_member_set(train_sets, target_user_id=1, num_member=num_member)
+        if setting == 's1':
+            # get member from user 1 by default
+            mem_set = get_attack_member_set(train_sets, target_user_id=1, num_member=num_member)
+        elif setting == 's2':
+            # get member from user 11(non-neigh)
+            mem_set = get_attack_member_set(train_sets, target_user_id=11, num_member=num_member)
+        elif setting == 's3':
+            # get member from user 1 and user 20(both neigh)
+            mem_set1 = get_attack_member_set(train_sets, target_user_id=1, num_member=num_member//2)
+            mem_set2 = get_attack_member_set(train_sets, target_user_id=20, num_member=num_member-num_member//2)
+            mem_set = Change2TensorDataset(ConcatDataset([mem_set1, mem_set2]))
+        elif setting == 's4':
+            # get member from user 11 and user 14(bother non-neigh)
+            mem_set1 = get_attack_member_set(train_sets, target_user_id=11, num_member=num_member//2)
+            mem_set2 = get_attack_member_set(train_sets, target_user_id=14, num_member=num_member-num_member//2)
+            mem_set = Change2TensorDataset(ConcatDataset([mem_set1, mem_set2]))
+        elif setting == 's5':
+            # get member from user 1(neigh) and user 11(non-neigh)
+            mem_set1 = get_attack_member_set(train_sets, target_user_id=1, num_member=num_member//2)
+            mem_set2 = get_attack_member_set(train_sets, target_user_id=11, num_member=num_member-num_member//2)
+            mem_set = Change2TensorDataset(ConcatDataset([mem_set1, mem_set2]))
+            
         train_sets = [DataLoader(train_set, batch_size=batch_size) for train_set in train_sets]
         attacker_set = ConcatDataset([mem_set, non_member_set])
         # attacker_set = DataLoader(Change2TensorDataset(attacker_set), batch_size=batch_size)
         attacker_set = Change2TensorDataset(attacker_set)
         assert len(attacker_set) == num_member + num_non_member, 'attacker dataset generation fail'
-        print(f'attacker member set: {num_member}, non-member set: {num_non_member}')
+        print(f'setting: {setting} attacker member set: {num_member}, non-member set: {num_non_member}, cover set: {num_cover}')
         train_sets = [attacker_set] + train_sets
     else:
         raise Exception()
