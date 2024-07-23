@@ -137,6 +137,7 @@ class DecentralizedLearning:
             
         # init weights to 0
         global_vars = init_list_variables(self.attacker.model)
+        global_buffers = init_list_buffers(self.attacker.model)
             
         # do not consider the attaker when active
         if drop_attacker:
@@ -147,12 +148,17 @@ class DecentralizedLearning:
         # avg local models
         for u in users:
             u_params = [p.data.clone() for p in u.model.parameters()]
+            u_buffer = [b.data.clone() for b in u.model.buffers()]
             global_vars = agg_sum(global_vars, u_params)
+            global_buffers = agg_sum(global_buffers, u_buffer)
         global_vars = agg_div(global_vars, len(users))
+        global_buffers = agg_div(global_buffers, len(users))
         
         # assign_list_variables(self.global_model.parameters(), global_vars)
         for p, op in zip(self.global_model.parameters(), global_vars):
-            p.data = op
+            p.data = op.clone()
+        for p, op in zip(self.global_model.buffers(), global_buffers):
+            p.data = op.clone()
             
         return self.global_model
     

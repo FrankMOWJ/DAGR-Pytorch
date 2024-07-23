@@ -57,12 +57,31 @@ class ResNet20(nn.Module):
         x = self.fc(x)
         return x
 
+class LinearCIFAR10(nn.Module):
+    def __init__(self):
+        super(LinearCIFAR10, self).__init__()
+        self.fc1 = nn.Linear(3 * 32 * 32, 10)  # 3*32*32是输入的展平向量维度，10是CIFAR-10的类别数
+
+    def forward(self, x):
+        x = x.view(-1, 3 * 32 * 32)  # 展平输入
+        x = self.fc1(x)
+        return x
+    
 def binary_accuracy(label, p):
     predicted = torch.argmax(p, dim=1)
     correct_prediction = (predicted == label).float()
     return correct_prediction.mean()
 
 def resnet20(input_shape, output_shape, init_lr, step_slr: list, bn=True):
+    model = ResNet20(input_shape, output_shape, bn)
+    # model = torchvision.models.resnet18(pretrained=False, num_classes=10)
+    loss = nn.CrossEntropyLoss()
+    optimizer_fn = lambda model: optim.SGD(model.parameters(), lr=init_lr, momentum=0.9)
+    scheduler_fn = lambda optimizer: MultiStepLR(optimizer, step_slr, gamma=0.1)
+    
+    return model, loss, optimizer_fn, scheduler_fn, binary_accuracy
+
+def Linear(input_shape, output_shape, init_lr, step_slr: list, bn=True):
     model = ResNet20(input_shape, output_shape, bn)
     # model = torchvision.models.resnet18(pretrained=False, num_classes=10)
     loss = nn.CrossEntropyLoss()

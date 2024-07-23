@@ -33,6 +33,9 @@ def init_list_variables(A):
     B = [torch.zeros_like(p) for p in A.parameters()]
     return B
 
+def init_list_buffers(model):
+    return [torch.zeros_like(b) for b in model.buffers()]
+
 def agg_sum(A, B):
     assert(len(A) == len(B))
     n = len(A)
