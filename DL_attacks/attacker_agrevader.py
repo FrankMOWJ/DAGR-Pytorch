@@ -148,7 +148,7 @@ class Agrevader_v2(Attacker):
         self.w_cover = w_cover
         return w_cover
 
-    def combine_vic_cov(self, w_victim, w_cover, ratio=0.5):
+    def combine_vic_cov(self, w_victim, w_cover, ratio=0.2):
         """
         Combine the victim and cover weights.
 

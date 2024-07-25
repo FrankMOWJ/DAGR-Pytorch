@@ -2,7 +2,7 @@ import os, sys, importlib
 
 from DL_attacks.utils import EarlyStopping, setup_data, setup_model
 from DL_attacks.logger import Logger
-from DL_attacks.attacker_acc_logger import Attack_Accuracy_Logger
+from DL_attacks.attacker_acc_logger import Attack_Accuracy_Logger, test_acc_logger
 from tqdm import tqdm
 
 if __name__ == '__main__':
@@ -22,14 +22,13 @@ if __name__ == '__main__':
     # attack acc logger 
     if not os.path.exists(Ctop.output_dir):
         os.makedirs(Ctop.output_dir)
-    log_name = f'{Ctop.name}' + Ctop.log_name
-    log_file_path = os.path.join(Ctop.output_dir, log_name)
-    
-    # other metric logger 
-    # name = f'{run_num}-{Cds.dsk}-{Ctop.name}' #TODO
-    name = f'{Ctop.name}_xnumAttack={Ctop.num_attack_user}_{Ctop.setting}_{Ctop.attack_type}_{Ctop.defense_type}' #TODO
-    output_file = os.path.join(Cds.output_dir, name)
-    print(f"Logging file in --> {output_file}")
+    attack_acc_log_name = f'{Ctop.name}' + Ctop.attack_acc_log_name 
+    attack_acc_log_path = os.path.join(Ctop.output_dir, attack_acc_log_name)
+    print(f"Attack acc log in file --> {attack_acc_log_path}")
+    # test acc logger 
+    test_acc_log_name = f'{Ctop.name}' + Ctop.test_acc_log_name 
+    test_acc_log_path = os.path.join(Ctop.output_dir, test_acc_log_name)
+    print(f"Test acc log in file --> {test_acc_log_path}")
     
     # gets users' local training size
     size_local_ds = Cds.compute_local_training_set_size(Ctop.nu)
@@ -67,8 +66,9 @@ if __name__ == '__main__':
         DL.from_nx_graph(Ctop.G, make_model, train_sets, test_set, Ctop.USER, Ctop.ATTACKER, Ctop.DEVICE)
 
     # it runs and logs metric during the training, including privacy risk
-    logr = Logger(Ctop, DL, output_file) #! Logger --> DL_attacks.logger.Logger --> 初始化一个Logger对象
-    attack_acc_logger = Attack_Accuracy_Logger(Ctop, DL, log_file_path)
+    # logr = Logger(Ctop, DL, output_file) #! Logger --> DL_attacks.logger.Logger --> 初始化一个Logger对象
+    attack_acc_logger = Attack_Accuracy_Logger(Ctop, DL, attack_acc_log_path)
+    test_acc_logger = test_acc_logger(Ctop, DL, test_acc_log_path)
     
     # it implements early stopping
     es = EarlyStopping(Cds.patience) #! EarlyStopping --> DL_attacks.utils.EarlyStopping --> 初始化一个EarlyStopping对象
@@ -82,19 +82,20 @@ if __name__ == '__main__':
        # eval models  
         if i % Cds.eval_interval == 0 and i: #! eval_interval: 25 --> 每25个iteration进行一次evaluation
             # logs privacy risk (slow operation)
-            score = logr(i) #! logr(i) --> Logger.__call__() --> 计算并记录utility, consensus和privacy
+            # score = logr(i) #! logr(i) --> Logger.__call__() --> 计算并记录utility, consensus和privacy
             DL.attacker.evaluate_attack_result()
             attack_acc_logger(i)
+            test_acc_logger()
             # checks for early stopping
             # if es(i, score): #! es(i, score) --> EarlyStopping.__call__() --> 检查是否需要early stop
             #     print("\tEarly stop!")
             #     break
             
             # save current logs
-            logr.dump() #! logr.dump() --> Logger.dump() --> 保存当前的logs
+            # logr.dump() #! logr.dump() --> Logger.dump() --> 保存当前的logs
     
     # final evaluation
-    logr(i, DL)
+    # logr(i, DL)
     
     # save final logs
-    logr.dump()
+    # logr.dump()

@@ -27,7 +27,8 @@ attack_type = 'angle' # norm, unitnorm, angle
 defense_type = 'None' # none, trimX, median
 
 output_dir = './results-agrevader' 
-log_name = f'_xnumAttack={num_attack_user}_{setting}_{attack_type}_{defense_type}.txt'
+attack_acc_log_name = f'_xnumAttack={num_attack_user}_{setting}_{attack_type}_{defense_type}_AttackAcc.txt'
+test_acc_log_name = f'_xnumAttack={num_attack_user}_{setting}_{attack_type}_{defense_type}_TestAcc.txt'
 
 # Graph topology
 CDL = DL.DecentralizedLearning
@@ -47,8 +48,8 @@ print("DEVICE: ", DEVICE)
 lrd = [400, 500, 600]
     
 # maximum number of training iterations 
-max_num_iter = 800
-normal_train_iter = 50
+max_num_iter = 1000
+normal_train_iter = 200
 # attacker node
 ATTACKER_ID = 0
 # additional conf for topology

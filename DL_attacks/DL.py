@@ -180,15 +180,12 @@ class DecentralizedLearning:
         else:
             users = self.U
         
+        test_acc_lst = []
         loss_train, acc_train = 0., 0.
         for idx, u in enumerate(users):
-            if idx < 5 or idx > 30:
-                if u.name == 0:
-                    # self_loss, self_acc = u.evaluate(DataLoader(u.cover_set, batch_size=100), model=u.model)[:2]
-                    self_loss, self_acc = u.evaluate(users[0].train_set, model=u.model)[:2]
-                else:
-                    self_loss, self_acc = u.evaluate(u.train_set, model=u.model)[:2]
-                print(f'User {u.name} local acc: {self_acc}')
+            self_loss, self_acc = u.evaluate(self.test_set, model=u.model)[:2]
+            test_acc_lst.append(self_acc)
+            print(f'User {u.name} test acc: {self_acc}')
             # 把所有user的训练集在全局模型上跑一次得到train的acc
             _loss_train, _acc_train = u.evaluate(u.train_set, model=self.global_model)[:2]
             loss_train += _loss_train
@@ -201,7 +198,7 @@ class DecentralizedLearning:
         loss_test, acc_test = self.U[1].evaluate(self.test_set, model=self.global_model)[:2]
 
         
-        return (loss_train, acc_train), (loss_test, acc_test)
+        return (loss_train, acc_train), (loss_test, acc_test), test_acc_lst
     
     
     def model_graph(self, with_labels=True, node_color=None):
