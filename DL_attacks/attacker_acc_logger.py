@@ -27,6 +27,7 @@ class Attack_Accuracy_Logger:
     
     def __call__(self, iter):
         # suppose there is only 1 attacker
+        print(f'iter:{iter} Attack result: {str(self.DL.attacker.result)}')
         self.logger.info(f'iter:{iter} {str(self.DL.attacker.result)}')
     
 

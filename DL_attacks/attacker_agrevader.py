@@ -20,7 +20,7 @@ def shuffle_labels(victim_set):
 
   
 class Agrevader_v2(Attacker):
-    def __init__(self, name, make_model, train_set, cover_set, device):
+    def __init__(self, name, make_model, train_set, cover_set, device, normal_train_iter, attack_type='norm', cover_try_time=5):
         """
         Initialize the Agrevader_v2 class.
 
@@ -59,6 +59,12 @@ class Agrevader_v2(Attacker):
         
         self.device = device
         self.model = self.model.to(self.device)
+        
+        self.normal_train_iter = normal_train_iter
+        self.cover_try_time = cover_try_time
+        
+        self.attack_type = attack_type
+        print(f'attack type: {attack_type}')
 
     def split_train_set(self, train_set):
         """
@@ -100,6 +106,7 @@ class Agrevader_v2(Attacker):
             List[torch.Tensor]: The trained weights of the model.
         """
         origin_param = [p.data.clone() for p in self.model.parameters()]
+        origin_buffer = [p.data.clone() for p in self.model.buffers()]
         self.model.train()
         for x, y in self.train_set:
             x, y = x.to(self.device), y.to(self.device)
@@ -111,6 +118,8 @@ class Agrevader_v2(Attacker):
         self.scheduler.step()
         w_victim = [p.data.clone() for p in self.model.parameters()]
         for p, op in zip(self.model.parameters(), origin_param):
+            p.data = op
+        for p, op in zip(self.model.buffers(), origin_buffer):
             p.data = op
         self.w_victim = w_victim
         return w_victim
@@ -146,13 +155,14 @@ class Agrevader_v2(Attacker):
         Args:
             w_victim (List[torch.Tensor]): The victim weights.
             w_cover (List[torch.Tensor]): The cover weights.
+            ratio (float): the weight of w_victim 
 
         Returns:
             List[torch.Tensor]: The combined weights.
         """
         # com_param = agg_sum(w_victim, w_cover)
         # com_param = agg_div(com_param, 2)
-        com_param = agg_sum(agg_mul(w_victim, ratio), agg_mul(w_cover, 1-ratio))
+        com_param = agg_mul(agg_sum(agg_mul(w_victim, ratio), agg_mul(w_cover, 1-ratio)), 1.0)
         return com_param
 
     def get_max_neigh_norm_diff(self):
@@ -225,14 +235,19 @@ class Agrevader_v2(Attacker):
             List[torch.Tensor]: The best attack parameters.
         """
         best_attack_params = None
-        self.times = 5
+        times = self.cover_try_time
         
-        # max_neigh_diff = self.get_max_neigh_norm_diff()
-        max_neigh_diff = self.get_max_neigh_unitnorm_diff()
-        # max_neigh_diff = self.get_max_neigh_angle_diff()
+        if self.attack_type == 'norm':
+            max_neigh_diff = self.get_max_neigh_norm_diff()
+        elif self.attack_type == 'unitnorm':
+            max_neigh_diff = self.get_max_neigh_unitnorm_diff()
+        elif self.attack_type == 'angle':
+            max_neigh_diff = self.get_max_neigh_angle_diff()
+        else: 
+            raise Exception()
         
-        while self.times:
-            self.times -= 1
+        while times:
+            times -= 1
             cur_cover_set = self.get_random_coverset()
             w_cur_cover = self.get_cover_w(cur_cover_set)
             cur_attack_param = self.combine_vic_cov(w_victim, w_cur_cover)
@@ -246,11 +261,14 @@ class Agrevader_v2(Attacker):
             cur_attack_param_flat = torch.from_numpy(cur_attack_param_flat)
             
             # norm 
-            # max_attacker_neigh_diff = max(torch.norm(neigh_param - cur_attack_param_flat) for neigh_param in neigh_params_list)
+            if self.attack_type == 'norm':
+                max_attacker_neigh_diff = max(torch.norm(neigh_param - cur_attack_param_flat) for neigh_param in neigh_params_list)
             # unit norm
-            max_attacker_neigh_diff = max(torch.norm(neigh_param / torch.norm(neigh_param) - cur_attack_param_flat / torch.norm(cur_attack_param_flat)) for neigh_param in neigh_params_list)
+            elif self.attack_type == 'unitnorm':
+                max_attacker_neigh_diff = max(torch.norm(neigh_param / torch.norm(neigh_param) - cur_attack_param_flat / torch.norm(cur_attack_param_flat)) for neigh_param in neigh_params_list)
             # angle
-            # max_attacker_neigh_diff = max(self.get_angle(neigh_param, cur_attack_param_flat) for neigh_param in neigh_params_list)
+            elif self.attack_type == 'angle':
+                max_attacker_neigh_diff = max(self.get_angle(neigh_param, cur_attack_param_flat) for neigh_param in neigh_params_list)
             
             if max_attacker_neigh_diff < max_neigh_diff:
                 if best_attack_params is None or torch.norm(torch.cat([p.view(-1) for p in best_attack_params])) < torch.norm(torch.cat([p.view(-1) for p in cur_attack_param])):
@@ -343,7 +361,7 @@ class Agrevader_v2(Attacker):
         Returns:
             List[tf.Tensor]: The attack parameters.
         """
-        if epoch < 100:
+        if epoch < self.normal_train_iter:
             var = self.w_cover
         else:
             var = self.attack_param

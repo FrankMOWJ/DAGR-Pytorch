@@ -1,9 +1,9 @@
 import numpy as np
-from DL_attacks import model, user, attacker, DL, attacker_agrevader, utils #TODO: add attacker_agrevader(FINISHED)
+from DL_attacks import model, user, attacker, DL, attacker_agrevader, utils 
 import random
 import torch
 
-# 设置随机种子
+# seed
 seed = 42
 torch.manual_seed(seed)
 np.random.seed(seed)
@@ -12,9 +12,8 @@ random.seed(seed)
 # where to save logs
 melitious_rate = 2.5
 num_attack_user = 1 # 2
-is_neigh = True
 
-setting = 's1'
+setting = 's7'
 '''
     s1	1 neighbour target 
     s2	1 non-neighbour target
@@ -22,12 +21,12 @@ setting = 's1'
     s4	2 non-neighbour targets
     s5	1 neigh 1 non-neigh targets
     s6	FL
+    s7  random 
 '''
-attack_type = 'unitnorm' # norm, unitnorm, angle
-defense_type = 'trim1' # none, trimX, median
+attack_type = 'angle' # norm, unitnorm, angle
+defense_type = 'None' # none, trimX, median
 
 output_dir = './results-agrevader' 
-# log_name = f'_MelitousRate{melitious_rate}_numAttack{num_attack_user}_isNeigh{is_neigh}.txt'
 log_name = f'_xnumAttack={num_attack_user}_{setting}_{attack_type}_{defense_type}.txt'
 
 # Graph topology
@@ -41,14 +40,15 @@ num_member = 500
 num_non_member = 500
 num_cover = 1000
 
-DEVICE = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+DEVICE = 'cuda:2' if torch.cuda.is_available() else 'cpu'
 print("DEVICE: ", DEVICE)
 
 # learning-rate scheduler steps to reach consensus (it may vary based on the topology)  
-lrd = [200, 300, 400]
+lrd = [400, 500, 600]
     
 # maximum number of training iterations 
-max_num_iter = 1000
+max_num_iter = 800
+normal_train_iter = 50
 # attacker node
 ATTACKER_ID = 0
 # additional conf for topology

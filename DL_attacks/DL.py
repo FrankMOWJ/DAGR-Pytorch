@@ -29,7 +29,9 @@ class DecentralizedLearning:
             cover_set,
             user,
             attacker,
-            device
+            device,
+            normal_train_iter,
+            attack_type
     ):
         
         assert len(train_sets) == n_users
@@ -38,9 +40,10 @@ class DecentralizedLearning:
         self.U = [None] * n_users #! 初始化一个长度为 n_users 的列表 self.U
         self.n_users = n_users
         self.test_set = test_set
+        self.normal_train_iter = normal_train_iter
         
         # attacker is always the first user
-        self.attacker = attacker(0, make_model, train_sets[0], cover_set, device) #! 使用的是trainset[0] and cover set
+        self.attacker = attacker(0, make_model, train_sets[0], cover_set, device, self.normal_train_iter, attack_type) #! 使用的是trainset[0] and cover set
         # self.attacker = attacker(0, make_model, train_sets[0],  device)
         self.U[0] = self.attacker
         
@@ -58,6 +61,8 @@ class DecentralizedLearning:
         user,
         attacker,
         device,
+        normal_train_iter,
+        attack_type,
         shuffle=True,
     ):
         """ Comm. topology from networkx graph """
@@ -72,7 +77,9 @@ class DecentralizedLearning:
             cover_set,
             user,
             attacker,
-            device
+            device,
+            normal_train_iter,
+            attack_type
         )
         
         mmap = {} #! 将 NetworkX 图 (G) 的节点映射到用户数组 self.U 的索引
@@ -112,7 +119,8 @@ class DecentralizedLearning:
         # attacker acts after everyone else (only for active attacks, when needed)
         self.attacker.train()  
         mu = self.attacker.get_model_update(epoch) #! mu是攻击者新的模型参数
-        self.attacker.model_update_buffer[self.attacker.name] = mu #! 保存攻击者的模型参数
+        if epoch < self.normal_train_iter:
+            self.attacker.model_update_buffer[self.attacker.name] = mu #! 保存攻击者的模型参数
         for v in self.attacker.neighbors:
             # 复制一份当前的参数出来
             mu = self.attacker.get_model_update(epoch)
@@ -176,7 +184,8 @@ class DecentralizedLearning:
         for idx, u in enumerate(users):
             if idx < 5 or idx > 30:
                 if u.name == 0:
-                    self_loss, self_acc = u.evaluate(DataLoader(u.cover_set, batch_size=100), model=u.model)[:2]
+                    # self_loss, self_acc = u.evaluate(DataLoader(u.cover_set, batch_size=100), model=u.model)[:2]
+                    self_loss, self_acc = u.evaluate(users[0].train_set, model=u.model)[:2]
                 else:
                     self_loss, self_acc = u.evaluate(u.train_set, model=u.model)[:2]
                 print(f'User {u.name} local acc: {self_acc}')
@@ -246,10 +255,12 @@ class Regular15(DecentralizedLearning):
         cover_set,
         user,
         attacker,
-        device
+        device,
+        normal_train_iter,
+        attack_type
     ):
         G = nx.random_regular_graph(15, n_users, seed=0) #! 30_15: 0号的neighbor为 1, 4, 5, 7, 8, 10, 12, 15, 20, 21, 22, 23, 25, 26, 29
-        DecentralizedLearning.from_nx_graph(self, G, make_model, train_sets, test_set, cover_set, user, attacker, device, shuffle=False)
+        DecentralizedLearning.from_nx_graph(self, G, make_model, train_sets, test_set, cover_set, user, attacker, device, normal_train_iter, attack_type, shuffle=False)
 
 
 class Regular20(DecentralizedLearning):
@@ -262,10 +273,12 @@ class Regular20(DecentralizedLearning):
         cover_set,
         user,
         attacker,
-        device
+        device,
+        normal_train_iter,
+        attack_type
     ):
         G = nx.random_regular_graph(20, n_users, seed=0) #! 40_20: 0号的neighbor为 1, 4, 6, 9, 16, 17, 18, 19, 20, 21, 22, 24, 25, 27, 28, 32, 33, 34, 36, 38
-        DecentralizedLearning.from_nx_graph(self, G, make_model, train_sets, test_set, cover_set, user, attacker, device, shuffle=False)
+        DecentralizedLearning.from_nx_graph(self, G, make_model, train_sets, test_set, cover_set, user, attacker, device, normal_train_iter, attack_type, shuffle=False)
    
    
 class Regular25(DecentralizedLearning):
@@ -278,10 +291,12 @@ class Regular25(DecentralizedLearning):
         cover_set,
         user,
         attacker,
-        device
+        device,
+        normal_train_iter,
+        attack_type
     ):
         G = nx.random_regular_graph(25, n_users, seed=0) #! 50_25: 0号的neighbor为 1, 2, 3, 6, 7, 10, 12, 13, 15, 18, 19, 20, 23, 25, 28, 30, 31, 32, 33, 34, 35, 38, 39, 43, 44
-        DecentralizedLearning.from_nx_graph(self, G, make_model, train_sets, test_set, cover_set, user, attacker, device, shuffle=False)
+        DecentralizedLearning.from_nx_graph(self, G, make_model, train_sets, test_set, cover_set, user, attacker, device, normal_train_iter, attack_type, shuffle=False)
              
 
 # 环图
@@ -295,7 +310,8 @@ class Ring(DecentralizedLearning):
             cover_set,
             user,
             attacker,
-            device
+            device,
+            normal_train_iter
     ):
         
         G = nx.cycle_graph(n_users)
@@ -313,7 +329,8 @@ class Torus(DecentralizedLearning):
             cover_set,
             user,
             attacker,
-            device
+            device,
+            normal_train_iter
     ):
         
         """ Torus comm. topology. n_users must have a square root """
@@ -337,11 +354,13 @@ class Complete(DecentralizedLearning):
             cover_set,
             user,
             attacker,
-            device
+            device,
+            normal_train_iter,
+            attack_type
     ):
         
         G = nx.complete_graph(n_users)
-        DecentralizedLearning.from_nx_graph(self, G, make_model, train_sets, test_set, cover_set, user, attacker, device, shuffle=False)
+        DecentralizedLearning.from_nx_graph(self, G, make_model, train_sets, test_set, cover_set, user, attacker, device, normal_train_iter, attack_type, shuffle=False)
         
 
 # 随机图
@@ -355,7 +374,8 @@ class Random(DecentralizedLearning):
             cover_set,
             user,
             attacker,
-            device
+            device,
+            normal_train_iter
     ):
         
         G = nx.erdos_renyi_graph(n_users, 0.1, seed=0)

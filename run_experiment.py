@@ -61,7 +61,8 @@ if __name__ == '__main__':
     DL = Ctop.CDL(Ctop.graph_properties) #! CDL: DecentralizedLearning --> DL_attacks.DL.DecentralizedLearning --> 初始化一个DecentralizedLearning对象
     if Ctop.G is None:
         # NOTE: add cover set
-        DL.setup(Ctop.nu, make_model, train_sets, test_set, cover_set, Ctop.USER, Ctop.ATTACKER, Ctop.DEVICE) #! Attacker从哪来？: __init__.py中的ATTACKER
+        DL.setup(Ctop.nu, make_model, train_sets, test_set, cover_set, Ctop.USER, Ctop.ATTACKER, \
+            Ctop.DEVICE, Ctop.normal_train_iter, Ctop.attack_type) #! Attacker从哪来？: __init__.py中的ATTACKER
     else:
         DL.from_nx_graph(Ctop.G, make_model, train_sets, test_set, Ctop.USER, Ctop.ATTACKER, Ctop.DEVICE)
 
@@ -86,8 +87,8 @@ if __name__ == '__main__':
             attack_acc_logger(i)
             # checks for early stopping
             # if es(i, score): #! es(i, score) --> EarlyStopping.__call__() --> 检查是否需要early stop
-                # print("\tEarly stop!")
-                # break
+            #     print("\tEarly stop!")
+            #     break
             
             # save current logs
             logr.dump() #! logr.dump() --> Logger.dump() --> 保存当前的logs

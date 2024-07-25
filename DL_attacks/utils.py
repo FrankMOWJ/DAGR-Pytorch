@@ -14,6 +14,25 @@ def make_uniform_dataset_users(data, num_users=1, local_dataset_size=10000) -> l
         datasets.append(user_data)
     return datasets
 
+def uniform_sample_from_user(datasets, num_member=500) -> TensorDataset:
+    sample_per_user = num_member // len(datasets)
+    rest_sample = num_member % len(datasets)
+    # print(len(datasets), sample_per_user, rest_sample)
+    sampled_x = []
+    sampled_y = []
+    for i, dataset in enumerate(datasets):
+        if i < rest_sample:
+            indices = torch.randperm(len(dataset))[:sample_per_user+1]
+        else:
+            indices = torch.randperm(len(dataset))[:sample_per_user]
+        x, y = zip(*[dataset[i] for i in indices])
+        sampled_x.append(torch.stack(x))
+        sampled_y.append(torch.stack(y))
+    
+    sampled_x = torch.cat(sampled_x)
+    sampled_y = torch.cat(sampled_y)
+    return TensorDataset(sampled_x, sampled_y)
+
 def get_attack_member_set(data, target_user_id=1, num_member=500):
     target_data = data[target_user_id-1]
     indices = torch.randperm(len(target_data))[:num_member]
@@ -92,12 +111,20 @@ def setup_data(
             mem_set1 = get_attack_member_set(train_sets, target_user_id=1, num_member=num_member//2)
             mem_set2 = get_attack_member_set(train_sets, target_user_id=11, num_member=num_member-num_member//2)
             mem_set = Change2TensorDataset(ConcatDataset([mem_set1, mem_set2]))
+        elif setting == 's6':
+            pass
+        elif setting == 's7':
+            # random sample 500 training sample from training data
+            mem_set = uniform_sample_from_user(train_sets, num_member=num_member)
+            
+        else:
+            raise Exception()
             
         train_sets = [DataLoader(train_set, batch_size=batch_size) for train_set in train_sets]
         attacker_set = ConcatDataset([mem_set, non_member_set])
         # attacker_set = DataLoader(Change2TensorDataset(attacker_set), batch_size=batch_size)
         attacker_set = Change2TensorDataset(attacker_set)
-        assert len(attacker_set) == num_member + num_non_member, 'attacker dataset generation fail'
+        assert len(attacker_set) == num_member + num_non_member, f'num_mem={num_member},num_non_mem={num_non_member}, but actual attack set len={len(attacker_set)}'
         print(f'setting: {setting} attacker member set: {num_member}, non-member set: {num_non_member}, cover set: {num_cover}')
         train_sets = [attacker_set] + train_sets
     else:
