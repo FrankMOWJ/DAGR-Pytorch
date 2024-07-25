@@ -43,8 +43,12 @@ class DecentralizedLearning:
         self.normal_train_iter = normal_train_iter
         
         # attacker is always the first user
-        self.attacker = attacker(0, make_model, train_sets[0], cover_set, device, self.normal_train_iter, attack_type) #! 使用的是trainset[0] and cover set
-        # self.attacker = attacker(0, make_model, train_sets[0],  device)
+        if attack_type == 'None':
+            # use non-attack attacker
+            self.attacker = attacker(0, make_model, train_sets[0], device)
+        else:
+            # use agrEvader attacker
+            self.attacker = attacker(0, make_model, train_sets[0], cover_set, device, self.normal_train_iter, attack_type) #! 使用的是trainset[0] and cover set
         self.U[0] = self.attacker
         
         for i in range(1, self.n_users):

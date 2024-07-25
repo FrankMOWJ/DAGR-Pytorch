@@ -13,7 +13,7 @@ random.seed(seed)
 melitious_rate = 2.5
 num_attack_user = 1 # 2
 
-setting = 's7'
+setting = 's1'
 '''
     s1	1 neighbour target 
     s2	1 non-neighbour target
@@ -23,8 +23,8 @@ setting = 's7'
     s6	FL
     s7  random 
 '''
-attack_type = 'angle' # norm, unitnorm, angle
-defense_type = 'None' # none, trimX, median
+attack_type = 'norm' # norm, unitnorm, angle, None
+defense_type = 'None' # None, trimX, median
 
 output_dir = './results-agrevader' 
 attack_acc_log_name = f'_xnumAttack={num_attack_user}_{setting}_{attack_type}_{defense_type}_AttackAcc.txt'
@@ -33,15 +33,15 @@ test_acc_log_name = f'_xnumAttack={num_attack_user}_{setting}_{attack_type}_{def
 # Graph topology
 CDL = DL.DecentralizedLearning
 USER = user.User
-# ATTACKER = attacker.Attacker #TODO: add attacker_agrevader
-ATTACKER = attacker_agrevader.Agrevader_v2
+ATTACKER = attacker.Attacker #TODO: add attacker_agrevader
+# ATTACKER = attacker_agrevader.Agrevader_v2
 G = None
 
-num_member = 500
-num_non_member = 500
-num_cover = 1000
+num_member = 200
+num_non_member = 200
+num_cover = 400
 
-DEVICE = 'cuda:2' if torch.cuda.is_available() else 'cpu'
+DEVICE = 'cuda:3' if torch.cuda.is_available() else 'cpu'
 print("DEVICE: ", DEVICE)
 
 # learning-rate scheduler steps to reach consensus (it may vary based on the topology)  
@@ -49,7 +49,7 @@ lrd = [400, 500, 600]
     
 # maximum number of training iterations 
 max_num_iter = 1000
-normal_train_iter = 200
+normal_train_iter = 200 if attack_type != 'None' else max_num_iter
 # attacker node
 ATTACKER_ID = 0
 # additional conf for topology

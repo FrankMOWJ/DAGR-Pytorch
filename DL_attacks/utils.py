@@ -66,6 +66,22 @@ def Change2TensorDataset(concateDataset):
     # 创建一个新的 TensorDataset
     tensor_dataset = TensorDataset(torch.stack(inputs), torch.stack(labels))
     return tensor_dataset
+
+def setup_data_without_attack(
+    load_dataset_fn,
+    num_users,
+    size_local_ds,
+    batch_size,
+    size_testset,
+    type_partition
+):
+    train_data, val_data, x_shape, num_class = load_dataset_fn()
+    test_set = make_uniform_dataset_users(val_data, 1, size_testset)[0]
+    if type_partition == 0:
+        train_sets = make_uniform_dataset_users(train_data, num_users, size_local_ds)
+    train_sets = [DataLoader(train_set, batch_size=batch_size) for train_set in train_sets]
+    test_set = DataLoader(test_set, batch_size=batch_size)
+    return train_sets, test_set, None, x_shape, num_class
     
 def setup_data(
     load_dataset_fn,

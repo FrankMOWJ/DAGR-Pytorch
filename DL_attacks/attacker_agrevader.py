@@ -36,7 +36,7 @@ class Agrevader_v2(Attacker):
         self.cover_set = cover_set
 
         self.neighbors = set()
-        self.model, self.loss_fn, self.opt_fn, self.sheduler_fn, self.metric = make_model()
+        self.model, self.loss, self.opt_fn, self.sheduler_fn, self.metric = make_model()
         self.opt = self.opt_fn(self.model)
         self.scheduler = self.sheduler_fn(self.opt)
         
@@ -323,21 +323,6 @@ class Agrevader_v2(Attacker):
         #     f.write(str(result) + "\n")
         # print("————————————————————————————————————————")
 
-    def compute_loss(self, x, y, model, training=True):
-        """
-        Compute the loss for the given inputs and model.
-
-        Args:
-            x (torch.Tensor): The input data.
-            y (torch.Tensor): The labels.
-
-        Returns:
-            Tuple[torch.Tensor, torch.Tensor]: The predictions and the loss.
-        """
-        p = model(x)
-        loss = self.loss_fn(p, y)
-        return p, loss
-
     def train(self):
         """
         Train the model and perform the attack.
@@ -359,7 +344,7 @@ class Agrevader_v2(Attacker):
             user: The user requesting the model update.
 
         Returns:
-            List[tf.Tensor]: The attack parameters.
+            List[torch.Tensor]: The attack parameters.
         """
         if epoch < self.normal_train_iter:
             var = self.w_cover

@@ -1,6 +1,5 @@
 import os, sys, importlib
-
-from DL_attacks.utils import EarlyStopping, setup_data, setup_model
+from DL_attacks.utils import EarlyStopping, setup_data, setup_model, setup_data_without_attack
 from DL_attacks.logger import Logger
 from DL_attacks.attacker_acc_logger import Attack_Accuracy_Logger, test_acc_logger
 from tqdm import tqdm
@@ -30,26 +29,37 @@ if __name__ == '__main__':
     test_acc_log_path = os.path.join(Ctop.output_dir, test_acc_log_name)
     print(f"Test acc log in file --> {test_acc_log_path}")
     
-    # gets users' local training size
-    size_local_ds = Cds.compute_local_training_set_size(Ctop.nu)
     
     print("Running setup ....")
-    print(f'user dataset size: {size_local_ds}')
     # loads and splits local training sets and test one (validation)
-    # NOTE: add cover set
-    train_sets, test_set, cover_set, x_shape, num_class = setup_data(
-        Cds.load_dataset,
-        Ctop.nu,
-        size_local_ds,
-        Cds.batch_size,
-        Cds.size_testset,
-        Cds.type_partition,
-        Ctop.num_member, Ctop.num_non_member, Ctop.num_cover,
-        Ctop.setting
-    )
-
+    if Ctop.attack_type == 'None':
+        # gets users' local training size
+        size_local_ds = Cds.compute_local_training_set_size(Ctop.nu)
+        train_sets, test_set, cover_set, x_shape, num_class = setup_data_without_attack(
+            Cds.load_dataset,
+            Ctop.nu,
+            size_local_ds,
+            Cds.batch_size,
+            Cds.size_testset,
+            Cds.type_partition
+        )
+    else:
+        # do not consider attacker
+        size_local_ds = Cds.compute_local_training_set_size(Ctop.nu - 1)
+        # NOTE: add cover set
+        train_sets, test_set, cover_set, x_shape, num_class = setup_data(
+            Cds.load_dataset,
+            Ctop.nu,
+            size_local_ds,
+            Cds.batch_size,
+            Cds.size_testset,
+            Cds.type_partition,
+            Ctop.num_member, Ctop.num_non_member, Ctop.num_cover,
+            Ctop.setting
+        )
+    print(f'user dataset size: {size_local_ds}')
+    
     # setup model generator function
-    # NOTE: 这里可能要改
     make_model = setup_model(
         Cds.model_maker,
         [x_shape, num_class, Ctop.init_lr, Ctop.lrd],
@@ -83,9 +93,11 @@ if __name__ == '__main__':
         if i % Cds.eval_interval == 0 and i: #! eval_interval: 25 --> 每25个iteration进行一次evaluation
             # logs privacy risk (slow operation)
             # score = logr(i) #! logr(i) --> Logger.__call__() --> 计算并记录utility, consensus和privacy
-            DL.attacker.evaluate_attack_result()
-            attack_acc_logger(i)
             test_acc_logger()
+            if Ctop.attack_type != 'None':
+                DL.attacker.evaluate_attack_result()
+                attack_acc_logger(i)
+                
             # checks for early stopping
             # if es(i, score): #! es(i, score) --> EarlyStopping.__call__() --> 检查是否需要early stop
             #     print("\tEarly stop!")

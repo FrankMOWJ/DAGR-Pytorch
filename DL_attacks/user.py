@@ -35,7 +35,7 @@ class User:
         self.device = device
         self.model = self.model.to(device)
         
-    def get_model_update(self): 
+    def get_model_update(self, epoch=0): 
         """ Generate model update for user 'user' """ 
         return [param.data.clone() for param in self.model.parameters()]
     
@@ -57,6 +57,7 @@ class User:
         # x, y = next(self.train_set_iter) # user 一次训练一个batch也即（64个sample）
 
         x, y = x.to(self.device), y.to(self.device)
+        # print(f'user {self.name} x shape: {x.shape}')
         self.opt.zero_grad()
         p, loss = self.compute_loss(x, y, self.model, training=True)
         loss = loss.mean()
