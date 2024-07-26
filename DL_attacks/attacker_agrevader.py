@@ -16,7 +16,7 @@ def shuffle_labels(victim_set):
     inputs, labels = victim_set.tensors
     shuffled_labels = torch.randint(0, 10, labels.shape, dtype=torch.long)
     shuffled_dataset = TensorDataset(inputs, shuffled_labels)
-    return DataLoader(shuffled_dataset, batch_size=100, shuffle=True)
+    return shuffled_dataset
 
   
 class Agrevader_v2(Attacker):
@@ -30,10 +30,17 @@ class Agrevader_v2(Attacker):
             train_set (TensorDataset): The training dataset.
             cover_set (TensorDataset): The cover dataset.
         """
+        print('setting up AgrEvader')
         self.name = name
         self.member_set, self.non_member_set = self.split_train_set(train_set)
-        self.train_set = shuffle_labels(train_set)
-        self.cover_set = cover_set
+        self.shuffle_train_set = DataLoader(shuffle_labels(train_set), batch_size=64)
+        self.shuffle_train_set_iter = iter(self.shuffle_train_set)
+        self.train_set = DataLoader(train_set, batch_size=500)
+        self.train_set_iter = iter(self.train_set)
+        # print(f'len train set iter: {len(self.train_set_iter)}')
+        # self.cover_set = cover_set
+        self.cover_set = DataLoader(cover_set, batch_size=64)
+        self.cover_set_iter = iter(self.cover_set)
 
         self.neighbors = set()
         self.model, self.loss, self.opt_fn, self.sheduler_fn, self.metric = make_model()
@@ -44,6 +51,7 @@ class Agrevader_v2(Attacker):
         
         self.attack_result = []
         self.result = None
+        self.mem_result = None
         self.model_update_buffer = {}
         self.window_model_update_buffer = [None, None]
         self.window_local_model = [None, None]
@@ -96,7 +104,7 @@ class Agrevader_v2(Attacker):
         cover_indices = torch.randperm(len(self.cover_set))[:num_cover_sam]
         inputs, labels = self.cover_set.tensors
         cur_cover_set = TensorDataset(inputs[cover_indices], labels[cover_indices])
-        return DataLoader(cur_cover_set, batch_size=100, shuffle=True)
+        return DataLoader(cur_cover_set, batch_size=num_cover_sam, shuffle=True)
 
     def get_victim_w(self):
         """
@@ -106,20 +114,22 @@ class Agrevader_v2(Attacker):
             List[torch.Tensor]: The trained weights of the model.
         """
         origin_param = [p.data.clone() for p in self.model.parameters()]
-        origin_buffer = [p.data.clone() for p in self.model.buffers()]
         self.model.train()
-        for x, y in self.train_set:
-            x, y = x.to(self.device), y.to(self.device)
-            self.opt.zero_grad()
-            p, loss = self.compute_loss(x, y, self.model)
-            loss = loss.mean()
-            loss.backward()
-            self.opt.step()
+        # for x, y in self.shuffle_train_set:
+        try:
+            x, y = next(self.shuffle_train_set_iter) # user 一次训练一个batch也即（64个sample）
+        except StopIteration:  # 当迭代器迭代完所有数据时重置
+            self.shuffle_train_set_iter = iter(self.shuffle_train_set)
+            x, y = next(self.shuffle_train_set_iter)
+        x, y = x.to(self.device), y.to(self.device)
+        self.opt.zero_grad()
+        p, loss = self.compute_loss(x, y, self.model)
+        loss = loss.mean()
+        loss.backward()
+        self.opt.step()
         self.scheduler.step()
         w_victim = [p.data.clone() for p in self.model.parameters()]
         for p, op in zip(self.model.parameters(), origin_param):
-            p.data = op
-        for p, op in zip(self.model.buffers(), origin_buffer):
             p.data = op
         self.w_victim = w_victim
         return w_victim
@@ -136,10 +146,12 @@ class Agrevader_v2(Attacker):
         """
         # origin_param = [p.data.clone() for p in self.model.parameters()]
         self.model.train()
-        for x, y in cur_cover_set:
+        cur_cover_set_iter = iter(cur_cover_set)
+        for i in range(len(cur_cover_set_iter)):
+            x, y = next(cur_cover_set_iter)
             x, y = x.to(self.device), y.to(self.device)
             self.opt.zero_grad()
-            p, loss = self.compute_loss(x, y, self.model)
+            p, loss = self.compute_loss(x, y, self.model, training=True)
             loss = loss.mean()
             loss.backward()
             self.opt.step()
@@ -148,7 +160,34 @@ class Agrevader_v2(Attacker):
         self.w_cover = w_cover
         return w_cover
 
-    def combine_vic_cov(self, w_victim, w_cover, ratio=0.2):
+    def get_cover_w_iter(self):
+        """
+        Train the model on the cover dataset and return the trained weights.
+
+        Args:
+            cur_cover_set (DataLoader): The cover subset.
+
+        Returns:
+            List[torch.Tensor]: The trained weights of the model.
+        """
+        self.model.train()
+        try:
+            x, y = next(self.cover_set_iter) # user 一次训练一个batch也即（64个sample）
+        except StopIteration:  # 当迭代器迭代完所有数据时重置
+            self.cover_set_iter = iter(self.cover_set)
+            x, y = next(self.cover_set_iter)
+        x, y = x.to(self.device), y.to(self.device)
+        self.opt.zero_grad()
+        p, loss = self.compute_loss(x, y, self.model, training=True)
+        loss = loss.mean()
+        loss.backward()
+        self.opt.step()
+        w_cover = [p.data.clone() for p in self.model.parameters()]
+
+        self.w_cover = w_cover
+        return w_cover
+    
+    def combine_vic_cov(self, w_victim, w_cover, ratio=0.5):
         """
         Combine the victim and cover weights.
 
@@ -235,7 +274,8 @@ class Agrevader_v2(Attacker):
             List[torch.Tensor]: The best attack parameters.
         """
         best_attack_params = None
-        times = self.cover_try_time
+        # times = self.cover_try_time
+        times = 1
         
         if self.attack_type == 'norm':
             max_neigh_diff = self.get_max_neigh_norm_diff()
@@ -248,8 +288,9 @@ class Agrevader_v2(Attacker):
         
         while times:
             times -= 1
-            cur_cover_set = self.get_random_coverset()
-            w_cur_cover = self.get_cover_w(cur_cover_set)
+            # cur_cover_set = self.get_random_coverset()
+            # w_cur_cover = self.get_cover_w(cur_cover_set)
+            w_cur_cover = self.get_cover_w_iter()
             cur_attack_param = self.combine_vic_cov(w_victim, w_cur_cover)
             # cur_attack_param_flat = torch.cat([p.view(-1) for p in cur_attack_param])
             # neigh_params_list = [torch.cat([p.view(-1) for p in params]) for params in self.model_update_buffer.values()]
@@ -282,7 +323,7 @@ class Agrevader_v2(Attacker):
             # print(f'find best attack params!, neigh diff: {max_neigh_diff}, attacker neigh diff: {max_attacker_neigh_diff}')
             # return [(p / torch.norm(p.view(-1))) for p in best_attack_params]
             return best_attack_params
-        
+    
     def evaluate_attack_result(self):
         """
         Evaluate the attack result and save it to a CSV file.
@@ -313,27 +354,71 @@ class Agrevader_v2(Attacker):
         attack_accuracy = (true_member + true_nonmember) / (true_member + true_nonmember + false_member + false_nonmember)
         attack_precision = true_member / (true_member + false_member)
         attack_recall = true_member / (true_member + false_nonmember)
-        result = (attack_accuracy, attack_precision, attack_recall)
-
-        self.result = result
-        # self.attack_result.append(result)
-        # print("————————————————————————————————————————")
-        # print(result)
-        # with open(f"attack_result_cifar10_torus36_angle_unit.csv", "a") as f:
-        #     f.write(str(result) + "\n")
-        # print("————————————————————————————————————————")
+        self.result = (attack_accuracy, attack_precision, attack_recall)
+        self.mem_result = (int(true_member), int(false_member), int(true_nonmember), int(false_nonmember))
 
     def train(self):
         """
         Train the model and perform the attack.
         """
 
-        w_victim = self.get_victim_w()
-        attack_param = self.get_best_attack_params(w_victim)
+        # # test only use normal train set(without label shuffling)
+        # self.model.train()
+        # for x, y in self.train_set:
+        #     x, y = x.to(self.device), y.to(self.device)
+        #     self.opt.zero_grad()
+        #     p, loss = self.compute_loss(x, y, self.model)
+        #     loss = loss.mean()
+        #     loss.backward()
+        #     self.opt.step()
+        # self.scheduler.step()
+        
+        # # get data
+        # # for i in range(len(self.train_set_iter)):
+        # try:
+        #     x, y = next(self.train_set_iter) # user 一次训练一个batch也即（64个sample）
+        # except StopIteration:  # 当迭代器迭代完所有数据时重置
+        #     self.train_set_iter = iter(self.train_set)
+        #     x, y = next(self.train_set_iter)
+
+        # x, y = x.to(self.device), y.to(self.device)
+        # self.opt.zero_grad()
+        # p, loss = self.compute_loss(x, y, self.model, training=True)
+        # loss = loss.mean()
+        
+        # metric = self.metric(y, p)
+        
+        # loss.backward()
+        # self.opt.step()
+        # self.scheduler.step()
+        
+        ''' attack '''
+        w_victim = self.get_victim_w() # test acc 没问题
+        # attack_param = self.get_best_attack_params(w_victim)
+        w_cur_cover = self.get_cover_w_iter()
+        attack_param = self.combine_vic_cov(w_victim, w_cur_cover)
         self.attack_param = attack_param
         
         # cur_cover_set = self.get_random_coverset()
         # w_cur_cover = self.get_cover_w(cur_cover_set)
+        
+        ''' cover set bs=64 '''
+        # try:
+        #     x, y = next(self.cover_set_iter) # user 一次训练一个batch也即（64个sample）
+        # except StopIteration:  # 当迭代器迭代完所有数据时重置
+        #     self.cover_set_iter = iter(self.cover_set)
+        #     x, y = next(self.cover_set_iter)
+
+        # x, y = x.to(self.device), y.to(self.device)
+        # self.opt.zero_grad()
+        # p, loss = self.compute_loss(x, y, self.model, training=True)
+        # loss = loss.mean()
+        
+        # metric = self.metric(y, p)
+        
+        # loss.backward()
+        # self.opt.step()
+        # self.scheduler.step()
 
 
     def get_model_update(self, epoch):
@@ -350,6 +435,7 @@ class Agrevader_v2(Attacker):
             var = self.w_cover
         else:
             var = self.attack_param
+        # var = self.w_cover
         var = clone_list_tensors(var)
         return var
 

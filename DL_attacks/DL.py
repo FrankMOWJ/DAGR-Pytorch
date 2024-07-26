@@ -109,6 +109,8 @@ class DecentralizedLearning:
         for u in pool:
             u.train()            
             mu = u.get_model_update()
+            # params_sum = torch.stack([torch.sum(p) for p in mu]).sum()
+            # print(f'user {u.name} param sum: {params_sum}')
             u.model_update_buffer[u.name] = mu
             u.check_model(u.name, mu)
             
@@ -123,6 +125,8 @@ class DecentralizedLearning:
         # attacker acts after everyone else (only for active attacks, when needed)
         self.attacker.train()  
         mu = self.attacker.get_model_update(epoch) #! mu是攻击者新的模型参数
+        # params_sum = torch.stack([torch.sum(p) for p in mu]).sum()
+        # print(f'user {self.attacker.name} param sum: {params_sum}')
         if epoch < self.normal_train_iter:
             self.attacker.model_update_buffer[self.attacker.name] = mu #! 保存攻击者的模型参数
         for v in self.attacker.neighbors:
@@ -185,16 +189,24 @@ class DecentralizedLearning:
             users = self.U
         
         test_acc_lst = []
+        train_acc_lst = []
         loss_train, acc_train = 0., 0.
         for idx, u in enumerate(users):
             self_loss, self_acc = u.evaluate(self.test_set, model=u.model)[:2]
             test_acc_lst.append(self_acc)
-            print(f'User {u.name} test acc: {self_acc}')
+            if u.name == '0':
+                loss_train, acc_train = u.evaluate(u.cover_set, model=u.model)[:2]
+            else:
+                loss_train, acc_train = u.evaluate(u.train_set, model=u.model)[:2]
+            train_acc_lst.append(acc_train)
+            print(f'User {u.name} train acc: {acc_train:.4f} test acc: {self_acc:.4f}')
             # 把所有user的训练集在全局模型上跑一次得到train的acc
             _loss_train, _acc_train = u.evaluate(u.train_set, model=self.global_model)[:2]
             loss_train += _loss_train
             acc_train += _acc_train
 
+        avg_result = f'avg train acc: {np.mean(np.array(train_acc_lst)):.4f} avg test acc: {np.mean(np.array(test_acc_lst)):.4f} min train acc: {np.min(np.array(train_acc_lst)):.4f}({np.argmin(np.array(train_acc_lst))}) min test acc: {np.min(np.array(test_acc_lst)):.4f}({np.argmin(np.array(test_acc_lst))})'
+        print(avg_result)
         loss_train = loss_train / len(users)
         acc_train = acc_train / len(users)
         
@@ -202,7 +214,7 @@ class DecentralizedLearning:
         loss_test, acc_test = self.U[1].evaluate(self.test_set, model=self.global_model)[:2]
 
         
-        return (loss_train, acc_train), (loss_test, acc_test), test_acc_lst
+        return (loss_train, acc_train), (loss_test, acc_test), test_acc_lst, train_acc_lst, avg_result
     
     
     def model_graph(self, with_labels=True, node_color=None):

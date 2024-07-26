@@ -142,7 +142,10 @@ def setup_data(
         attacker_set = Change2TensorDataset(attacker_set)
         assert len(attacker_set) == num_member + num_non_member, f'num_mem={num_member},num_non_mem={num_non_member}, but actual attack set len={len(attacker_set)}'
         print(f'setting: {setting} attacker member set: {num_member}, non-member set: {num_non_member}, cover set: {num_cover}')
+        assert len(train_sets) == num_users - 1, f'user train set allocate fail, len should be {num_users-1} but {len(train_sets)}'
         train_sets = [attacker_set] + train_sets
+        assert len(train_sets) == num_users, f'attacker train set have not be added'
+        
     else:
         raise Exception()
 

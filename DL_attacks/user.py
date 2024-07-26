@@ -6,14 +6,14 @@ import numpy as np
 from .ops_on_vars_list import *
 
 class User:
-    def __init__(self, name, make_model, train_set, device):
+    def __init__(self, name, make_model, train_set, device, byz=None):
         self.name = name  # 实际上就是user的编号
         self.train_set = train_set
         self.train_set_iter = iter(self.train_set)  # 使用iter对象
         self.neighbors = set()  # 存放的是邻居的完整实例
-        self.model, self.loss, self.opt, self.sheduler, self.metric = make_model()
+        self.model, self.loss, self.opt, self.scheduler, self.metric = make_model()
         self.opt = self.opt(self.model)  # 优化器
-        self.sheduler = self.sheduler(self.opt) # 适配器
+        self.scheduler = self.scheduler(self.opt) # 适配器
         
         # received model updates at the current round
         self.model_update_buffer = {}  # 保存所有邻居的参数
@@ -49,12 +49,12 @@ class User:
         """ Local training step """
         
         # get data
+        # for i in range(len(self.train_set_iter)):
         try:
-            x, y = next(self.train_set_iter)
-        except StopIteration:  # 当迭代器迭代完所有数据时，手动重置
+            x, y = next(self.train_set_iter) # user 一次训练一个batch也即（64个sample）
+        except StopIteration:  # 当迭代器迭代完所有数据时重置
             self.train_set_iter = iter(self.train_set)
             x, y = next(self.train_set_iter)
-        # x, y = next(self.train_set_iter) # user 一次训练一个batch也即（64个sample）
 
         x, y = x.to(self.device), y.to(self.device)
         # print(f'user {self.name} x shape: {x.shape}')
@@ -67,10 +67,9 @@ class User:
         
         loss.backward()
         self.opt.step()
-        self.sheduler.step()
+        self.scheduler.step()
         
         # logging 
-        # 这里可能有点问题
         self.gradient = [param.grad.clone() for param in self.model.parameters()]
 
         out = (loss.item(), metric.item())

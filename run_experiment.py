@@ -1,7 +1,6 @@
 import os, sys, importlib
 from DL_attacks.utils import EarlyStopping, setup_data, setup_model, setup_data_without_attack
-from DL_attacks.logger import Logger
-from DL_attacks.attacker_acc_logger import Attack_Accuracy_Logger, test_acc_logger
+from DL_attacks.attacker_acc_logger import acc_logger
 from tqdm import tqdm
 
 if __name__ == '__main__':
@@ -18,16 +17,12 @@ if __name__ == '__main__':
     Cds = importlib.import_module(ds_setup_file)
     Ctop = importlib.import_module(top_setup_file)
 
-    # attack acc logger 
+    # acc logger for train acc, test acc and attack acc
     if not os.path.exists(Ctop.output_dir):
         os.makedirs(Ctop.output_dir)
-    attack_acc_log_name = f'{Ctop.name}' + Ctop.attack_acc_log_name 
-    attack_acc_log_path = os.path.join(Ctop.output_dir, attack_acc_log_name)
-    print(f"Attack acc log in file --> {attack_acc_log_path}")
-    # test acc logger 
-    test_acc_log_name = f'{Ctop.name}' + Ctop.test_acc_log_name 
-    test_acc_log_path = os.path.join(Ctop.output_dir, test_acc_log_name)
-    print(f"Test acc log in file --> {test_acc_log_path}")
+    acc_log_name = f'{Ctop.name}' + Ctop.acc_log_name 
+    acc_log_path = os.path.join(Ctop.output_dir, acc_log_name)
+    print(f"Acc log in file --> {acc_log_path}")
     
     
     print("Running setup ....")
@@ -45,7 +40,8 @@ if __name__ == '__main__':
         )
     else:
         # do not consider attacker
-        size_local_ds = Cds.compute_local_training_set_size(Ctop.nu - 1)
+        # size_local_ds = Cds.compute_local_training_set_size(Ctop.nu - 1)
+        size_local_ds = 1250
         # NOTE: add cover set
         train_sets, test_set, cover_set, x_shape, num_class = setup_data(
             Cds.load_dataset,
@@ -77,11 +73,10 @@ if __name__ == '__main__':
 
     # it runs and logs metric during the training, including privacy risk
     # logr = Logger(Ctop, DL, output_file) #! Logger --> DL_attacks.logger.Logger --> 初始化一个Logger对象
-    attack_acc_logger = Attack_Accuracy_Logger(Ctop, DL, attack_acc_log_path)
-    test_acc_logger = test_acc_logger(Ctop, DL, test_acc_log_path)
+    acc_logger = acc_logger(Ctop, DL, acc_log_path)
     
     # it implements early stopping
-    es = EarlyStopping(Cds.patience) #! EarlyStopping --> DL_attacks.utils.EarlyStopping --> 初始化一个EarlyStopping对象
+    # es = EarlyStopping(Cds.patience) #! EarlyStopping --> DL_attacks.utils.EarlyStopping --> 初始化一个EarlyStopping对象
     
     ## Main training loop
     print("Training ....")
@@ -92,22 +87,6 @@ if __name__ == '__main__':
        # eval models  
         if i % Cds.eval_interval == 0 and i: #! eval_interval: 25 --> 每25个iteration进行一次evaluation
             # logs privacy risk (slow operation)
-            # score = logr(i) #! logr(i) --> Logger.__call__() --> 计算并记录utility, consensus和privacy
-            test_acc_logger()
-            if Ctop.attack_type != 'None':
-                DL.attacker.evaluate_attack_result()
-                attack_acc_logger(i)
-                
-            # checks for early stopping
-            # if es(i, score): #! es(i, score) --> EarlyStopping.__call__() --> 检查是否需要early stop
-            #     print("\tEarly stop!")
-            #     break
-            
-            # save current logs
-            # logr.dump() #! logr.dump() --> Logger.dump() --> 保存当前的logs
-    
-    # final evaluation
-    # logr(i, DL)
-    
-    # save final logs
-    # logr.dump()
+            DL.attacker.evaluate_attack_result()
+            acc_logger(i)
+
