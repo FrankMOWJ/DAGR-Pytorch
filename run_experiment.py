@@ -40,8 +40,7 @@ if __name__ == '__main__':
         )
     else:
         # do not consider attacker
-        # size_local_ds = Cds.compute_local_training_set_size(Ctop.nu - 1)
-        size_local_ds = 1250
+        size_local_ds = (Cds.ds_size - Ctop.num_cover) // (Ctop.nu - 1)
         # NOTE: add cover set
         train_sets, test_set, cover_set, x_shape, num_class = setup_data(
             Cds.load_dataset,
@@ -87,6 +86,6 @@ if __name__ == '__main__':
        # eval models  
         if i % Cds.eval_interval == 0 and i: #! eval_interval: 25 --> 每25个iteration进行一次evaluation
             # logs privacy risk (slow operation)
-            DL.attacker.evaluate_attack_result()
+            # DL.attacker.evaluate_attack_result()
             acc_logger(i)
 

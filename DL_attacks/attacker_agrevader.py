@@ -33,12 +33,12 @@ class Agrevader_v2(Attacker):
         print('setting up AgrEvader')
         self.name = name
         self.member_set, self.non_member_set = self.split_train_set(train_set)
-        self.shuffle_train_set = DataLoader(shuffle_labels(train_set), batch_size=64)
+        self.shuffle_train_set = DataLoader(shuffle_labels(train_set), batch_size=256)
         self.shuffle_train_set_iter = iter(self.shuffle_train_set)
         self.train_set = DataLoader(train_set, batch_size=500)
         self.train_set_iter = iter(self.train_set)
         self.cover_set = cover_set
-        self.cover_set_loader = DataLoader(cover_set, batch_size=64)
+        self.cover_set_loader = DataLoader(cover_set, batch_size=256)
         self.cover_set_iter = iter(self.cover_set_loader)
 
         self.neighbors = set()
@@ -276,7 +276,7 @@ class Agrevader_v2(Attacker):
         """
         best_attack_params = None
         # times = self.cover_try_time
-        times = 1
+        times = 5
         
         if self.attack_type == 'norm':
             max_neigh_diff = self.get_max_neigh_norm_diff()
@@ -396,7 +396,7 @@ class Agrevader_v2(Attacker):
         ''' attack try time = 1'''
         # w_victim = self.get_victim_w() # test acc 没问题
         # attack_param = self.get_best_attack_params(w_victim)
-        # # # w_cur_cover = self.get_cover_w_iter()
+        # # w_cur_cover = self.get_cover_w_iter()
         # # attack_param = self.combine_vic_cov(w_victim, w_cur_cover)
         # self.attack_param = attack_param
         

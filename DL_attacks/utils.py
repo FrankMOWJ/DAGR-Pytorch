@@ -97,8 +97,8 @@ def setup_data(
 ):
     train_data, val_data, x_shape, num_class = load_dataset_fn()
 
-    # train_data, cover_data = random_split(train_data, [len(train_data) - num_cover, num_cover])
-    # cover_set = get_cover_set(cover_data, num_cover)
+    train_data, cover_data = random_split(train_data, [len(train_data) - num_cover, num_cover])
+    cover_set = get_cover_set(cover_data, num_cover)
 
     test_set = make_uniform_dataset_users(val_data, 1, size_testset)[0]
     test_set = DataLoader(test_set, batch_size=batch_size)
@@ -106,7 +106,7 @@ def setup_data(
     non_member_set = get_attack_non_member_set(val_data, num_non_member)
     
     if type_partition == 0:
-        train_sets = make_uniform_dataset_users(train_data, num_users, size_local_ds)
+        train_sets = make_uniform_dataset_users(train_data, num_users - 1, size_local_ds)
         if setting == 's1':
             # get member from user 1 by default
             mem_set = get_attack_member_set(train_sets, target_user_id=1, num_member=num_member)
@@ -135,8 +135,8 @@ def setup_data(
         else:
             raise Exception()
         
-        cover_set = train_sets[0]
-        train_sets = train_sets[1:]
+        # cover_set = train_sets[0]
+        # train_sets = train_sets[1:]
         train_sets = [DataLoader(train_set, batch_size=batch_size) for train_set in train_sets]
         attacker_set = ConcatDataset([mem_set, non_member_set])
         attacker_set = Change2TensorDataset(attacker_set)

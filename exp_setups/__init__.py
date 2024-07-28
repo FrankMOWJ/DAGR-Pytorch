@@ -26,7 +26,8 @@ setting = 's6'
     s5	1 neigh 1 non-neigh targets
     s6	FL
 '''
-attack_type = 'angle' # norm, unitnorm, angle, None
+# attack_type 改成None就是原本是的Attacker
+attack_type = 'None' # norm, unitnorm, angle, None
 defense_type = 'None' # None, trimX, median
 iid = 'iid' if type_partition == 0 else 'non-iid'
 
@@ -50,11 +51,11 @@ num_member = 500
 num_non_member = 500
 num_cover = 1250
 
-DEVICE = 'cuda:1' if torch.cuda.is_available() else 'cpu'
+DEVICE = 'cuda:3' if torch.cuda.is_available() else 'cpu'
 print("DEVICE:", DEVICE)
 
 # learning-rate scheduler steps to reach consensus (it may vary based on the topology)  
-lrd = [300, 400, 500]
+lrd = [300, 400, 500, 600]
     
 # maximum number of training iterations 
 max_num_iter = 1000
@@ -72,7 +73,7 @@ init_lr = .1
 # patience early stopping
 patience = 10
 # when to run MIAs
-eval_interval = 25
+eval_interval = 50
 # is it federated learning?
 federated = False
         

@@ -194,7 +194,7 @@ class DecentralizedLearning:
         for idx, u in enumerate(users):
             self_loss, self_acc = u.evaluate(self.test_set, model=u.model)[:2]
             test_acc_lst.append(self_acc)
-            if u.name == 0:
+            if u.name == 0 and hasattr(u, 'cover_set'):
                 loss_train, acc_train = u.evaluate(DataLoader(u.cover_set, batch_size=64), model=u.model)[:2]
             else:
                 loss_train, acc_train = u.evaluate(u.train_set, model=u.model)[:2]
