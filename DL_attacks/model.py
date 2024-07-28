@@ -72,9 +72,20 @@ def binary_accuracy(label, p):
     correct_prediction = (predicted == label).float()
     return correct_prediction.mean()
 
-def resnet20(input_shape, output_shape, init_lr, step_slr: list, bn=True):
+def resnet20(input_shape, output_shape, init_lr, step_slr: list, pretrain=False, checkpoint_path=None, bn=True):
     model = ResNet20(input_shape, output_shape, bn)
-    # model = torchvision.models.resnet18(pretrained=False, num_classes=10)
+    if pretrain:
+        if checkpoint_path is None:
+            raise ValueError('pretrain need checkpoint path')
+        else:
+            ckpt = torch.load(checkpoint_path)
+            for key, value in ckpt['net'].items():
+                if 'module.' in key:
+                    key = key.replace('module.', '')
+            print(ckpt['net'].keys())
+                    
+            model.load_state_dict(ckpt['net'])
+            print('load pre-trained checkpoint successfully')
     loss = nn.CrossEntropyLoss()
     optimizer_fn = lambda model: optim.SGD(model.parameters(), lr=init_lr, momentum=0.9)
     scheduler_fn = lambda optimizer: MultiStepLR(optimizer, step_slr, gamma=0.1)

@@ -17,7 +17,7 @@ type_partition = 0
 melitious_rate = 2.5
 num_attack_user = 1 # 2
 
-setting = 's1'
+setting = 's6'
 '''
     s1	1 neighbour target 
     s2	1 non-neighbour target
@@ -25,14 +25,14 @@ setting = 's1'
     s4	2 non-neighbour targets
     s5	1 neigh 1 non-neigh targets
     s6	FL
-    s7  random 
 '''
 attack_type = 'angle' # norm, unitnorm, angle, None
 defense_type = 'None' # None, trimX, median
 iid = 'iid' if type_partition == 0 else 'non-iid'
 
 output_dir = './results-agrevader' 
-timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+# timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+timestamp = 'test'
 acc_log_name = f'_xnumAttack={num_attack_user}_{setting}_{iid}_{attack_type}_{defense_type}_{timestamp}.txt'
 
 # Graph topology
@@ -41,6 +41,11 @@ USER = user.User
 ATTACKER = attacker.Attacker if attack_type == 'None' else attacker_agrevader.Agrevader_v2
 G = None
 
+# pretrain
+pretrain = False
+checkpoint_path = r'./checkpoint/test_acc=88.23.pth'
+
+# victim and cover set
 num_member = 500
 num_non_member = 500
 num_cover = 1250

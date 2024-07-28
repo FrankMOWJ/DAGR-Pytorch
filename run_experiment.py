@@ -58,7 +58,7 @@ if __name__ == '__main__':
     # setup model generator function
     make_model = setup_model(
         Cds.model_maker,
-        [x_shape, num_class, Ctop.init_lr, Ctop.lrd],
+        [x_shape, num_class, Ctop.init_lr, Ctop.lrd, Ctop.pretrain, Ctop.checkpoint_path],
         Cds.model_same_init #! model_same_init: True --> 所有用户的模型初始化相同
     ) #! setup_model --> DL_attacks.utils.setup_model --> 初始化一个模型生成函数
     

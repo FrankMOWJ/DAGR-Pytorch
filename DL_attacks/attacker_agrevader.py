@@ -37,14 +37,15 @@ class Agrevader_v2(Attacker):
         self.shuffle_train_set_iter = iter(self.shuffle_train_set)
         self.train_set = DataLoader(train_set, batch_size=500)
         self.train_set_iter = iter(self.train_set)
-        # print(f'len train set iter: {len(self.train_set_iter)}')
-        # self.cover_set = cover_set
-        self.cover_set = DataLoader(cover_set, batch_size=64)
-        self.cover_set_iter = iter(self.cover_set)
+        self.cover_set = cover_set
+        self.cover_set_loader = DataLoader(cover_set, batch_size=64)
+        self.cover_set_iter = iter(self.cover_set_loader)
 
         self.neighbors = set()
         self.model, self.loss, self.opt_fn, self.sheduler_fn, self.metric = make_model()
         self.opt = self.opt_fn(self.model)
+        # for param_group in self.opt.param_groups:
+        #     param_group['lr'] = 0.01
         self.scheduler = self.sheduler_fn(self.opt)
         
         self.victim = self.neighbors
@@ -174,7 +175,7 @@ class Agrevader_v2(Attacker):
         try:
             x, y = next(self.cover_set_iter) # user 一次训练一个batch也即（64个sample）
         except StopIteration:  # 当迭代器迭代完所有数据时重置
-            self.cover_set_iter = iter(self.cover_set)
+            self.cover_set_iter = iter(self.cover_set_loader)
             x, y = next(self.cover_set_iter)
         x, y = x.to(self.device), y.to(self.device)
         self.opt.zero_grad()
@@ -187,7 +188,7 @@ class Agrevader_v2(Attacker):
         self.w_cover = w_cover
         return w_cover
     
-    def combine_vic_cov(self, w_victim, w_cover, ratio=0.5):
+    def combine_vic_cov(self, w_victim, w_cover, ratio=0.7):
         """
         Combine the victim and cover weights.
 
@@ -316,7 +317,7 @@ class Agrevader_v2(Attacker):
                     best_attack_params = cur_attack_param
 
         if best_attack_params is None:
-            # print('have not find best attack params!')
+            print('have not find best attack params!')
             # return [(p / torch.norm(p.view(-1))) for p in cur_attack_param]
             return cur_attack_param
         else:
@@ -392,52 +393,49 @@ class Agrevader_v2(Attacker):
         # self.opt.step()
         # self.scheduler.step()
         
-        ''' attack '''
-        w_victim = self.get_victim_w() # test acc 没问题
+        ''' attack try time = 1'''
+        # w_victim = self.get_victim_w() # test acc 没问题
         # attack_param = self.get_best_attack_params(w_victim)
-        w_cur_cover = self.get_cover_w_iter()
-        attack_param = self.combine_vic_cov(w_victim, w_cur_cover)
-        self.attack_param = attack_param
-        
-        # cur_cover_set = self.get_random_coverset()
-        # w_cur_cover = self.get_cover_w(cur_cover_set)
+        # # # w_cur_cover = self.get_cover_w_iter()
+        # # attack_param = self.combine_vic_cov(w_victim, w_cur_cover)
+        # self.attack_param = attack_param
         
         ''' cover set bs=64 '''
-        # try:
-        #     x, y = next(self.cover_set_iter) # user 一次训练一个batch也即（64个sample）
-        # except StopIteration:  # 当迭代器迭代完所有数据时重置
-        #     self.cover_set_iter = iter(self.cover_set)
-        #     x, y = next(self.cover_set_iter)
+        try:
+            x, y = next(self.cover_set_iter) # user 一次训练一个batch也即（64个sample）
+        except StopIteration:  # 当迭代器迭代完所有数据时重置
+            self.cover_set_iter = iter(self.cover_set_loader)
+            x, y = next(self.cover_set_iter)
 
-        # x, y = x.to(self.device), y.to(self.device)
-        # self.opt.zero_grad()
-        # p, loss = self.compute_loss(x, y, self.model, training=True)
-        # loss = loss.mean()
+        x, y = x.to(self.device), y.to(self.device)
+        self.opt.zero_grad()
+        p, loss = self.compute_loss(x, y, self.model, training=True)
+        loss = loss.mean()
         
-        # metric = self.metric(y, p)
+        metric = self.metric(y, p)
         
-        # loss.backward()
-        # self.opt.step()
-        # self.scheduler.step()
+        loss.backward()
+        self.opt.step()
+        self.scheduler.step()
 
 
-    def get_model_update(self, epoch):
-        """
-        Get the model update for the given user.
+    # def get_model_update(self, epoch):
+    #     """
+    #     Get the model update for the given user.
 
-        Args:
-            user: The user requesting the model update.
+    #     Args:
+    #         user: The user requesting the model update.
 
-        Returns:
-            List[torch.Tensor]: The attack parameters.
-        """
-        if epoch < self.normal_train_iter:
-            var = self.w_cover
-        else:
-            var = self.attack_param
-        # var = self.w_cover
-        var = clone_list_tensors(var)
-        return var
+    #     Returns:
+    #         List[torch.Tensor]: The attack parameters.
+    #     """
+    #     if epoch < self.normal_train_iter:
+    #         var = self.w_cover
+    #     else:
+    #         var = self.attack_param
+    #     # var = self.w_cover
+    #     var = clone_list_tensors(var)
+    #     return var
 
 
     # def update(self):

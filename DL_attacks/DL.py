@@ -194,16 +194,16 @@ class DecentralizedLearning:
         for idx, u in enumerate(users):
             self_loss, self_acc = u.evaluate(self.test_set, model=u.model)[:2]
             test_acc_lst.append(self_acc)
-            if u.name == '0':
-                loss_train, acc_train = u.evaluate(u.cover_set, model=u.model)[:2]
+            if u.name == 0:
+                loss_train, acc_train = u.evaluate(DataLoader(u.cover_set, batch_size=64), model=u.model)[:2]
             else:
                 loss_train, acc_train = u.evaluate(u.train_set, model=u.model)[:2]
             train_acc_lst.append(acc_train)
             print(f'User {u.name} train acc: {acc_train:.4f} test acc: {self_acc:.4f}')
             # 把所有user的训练集在全局模型上跑一次得到train的acc
-            _loss_train, _acc_train = u.evaluate(u.train_set, model=self.global_model)[:2]
-            loss_train += _loss_train
-            acc_train += _acc_train
+            # _loss_train, _acc_train = u.evaluate(u.train_set, model=self.global_model)[:2]
+            # loss_train += _loss_train
+            # acc_train += _acc_train
 
         avg_result = f'avg train acc: {np.mean(np.array(train_acc_lst)):.4f} avg test acc: {np.mean(np.array(test_acc_lst)):.4f} min train acc: {np.min(np.array(train_acc_lst)):.4f}({np.argmin(np.array(train_acc_lst))}) min test acc: {np.min(np.array(test_acc_lst)):.4f}({np.argmin(np.array(test_acc_lst))})'
         print(avg_result)

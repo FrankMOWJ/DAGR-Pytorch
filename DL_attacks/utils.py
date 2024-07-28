@@ -34,7 +34,7 @@ def uniform_sample_from_user(datasets, num_member=500) -> TensorDataset:
     return TensorDataset(sampled_x, sampled_y)
 
 def get_attack_member_set(data, target_user_id=1, num_member=500):
-    target_data = data[target_user_id-1]
+    target_data = data[target_user_id]
     indices = torch.randperm(len(target_data))[:num_member]
     member_set = Subset(target_data, indices)
     return member_set
@@ -97,15 +97,16 @@ def setup_data(
 ):
     train_data, val_data, x_shape, num_class = load_dataset_fn()
 
-    train_data, cover_data = random_split(train_data, [len(train_data) - num_cover, num_cover])
-    cover_set = get_cover_set(cover_data, num_cover)
+    # train_data, cover_data = random_split(train_data, [len(train_data) - num_cover, num_cover])
+    # cover_set = get_cover_set(cover_data, num_cover)
 
     test_set = make_uniform_dataset_users(val_data, 1, size_testset)[0]
+    test_set = DataLoader(test_set, batch_size=batch_size)
 
     non_member_set = get_attack_non_member_set(val_data, num_non_member)
-
+    
     if type_partition == 0:
-        train_sets = make_uniform_dataset_users(train_data, num_users - 1, size_local_ds)
+        train_sets = make_uniform_dataset_users(train_data, num_users, size_local_ds)
         if setting == 's1':
             # get member from user 1 by default
             mem_set = get_attack_member_set(train_sets, target_user_id=1, num_member=num_member)
@@ -128,20 +129,19 @@ def setup_data(
             mem_set2 = get_attack_member_set(train_sets, target_user_id=11, num_member=num_member-num_member//2)
             mem_set = Change2TensorDataset(ConcatDataset([mem_set1, mem_set2]))
         elif setting == 's6':
-            pass
-        elif setting == 's7':
             # random sample 500 training sample from training data
             mem_set = uniform_sample_from_user(train_sets, num_member=num_member)
             
         else:
             raise Exception()
-            
+        
+        cover_set = train_sets[0]
+        train_sets = train_sets[1:]
         train_sets = [DataLoader(train_set, batch_size=batch_size) for train_set in train_sets]
         attacker_set = ConcatDataset([mem_set, non_member_set])
-        # attacker_set = DataLoader(Change2TensorDataset(attacker_set), batch_size=batch_size)
         attacker_set = Change2TensorDataset(attacker_set)
         assert len(attacker_set) == num_member + num_non_member, f'num_mem={num_member},num_non_mem={num_non_member}, but actual attack set len={len(attacker_set)}'
-        print(f'setting: {setting} attacker member set: {num_member}, non-member set: {num_non_member}, cover set: {num_cover}')
+        print(f'setting: {setting} attacker member set: {len(mem_set)}, non-member set: {len(non_member_set)}, cover set: {len(cover_set)}')
         assert len(train_sets) == num_users - 1, f'user train set allocate fail, len should be {num_users-1} but {len(train_sets)}'
         train_sets = [attacker_set] + train_sets
         assert len(train_sets) == num_users, f'attacker train set have not be added'
@@ -149,7 +149,7 @@ def setup_data(
     else:
         raise Exception()
 
-    return train_sets, DataLoader(test_set, batch_size=batch_size), cover_set, x_shape, num_class
+    return train_sets, test_set, cover_set, x_shape, num_class
 
 
 class EarlyStopping:

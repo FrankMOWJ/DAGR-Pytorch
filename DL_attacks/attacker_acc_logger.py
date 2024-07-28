@@ -33,7 +33,7 @@ class acc_logger:
         self.logger.info(test_result)
         self.logger.info(avg_result)
         
-        if hasattr(self.DL.attacker, 'result'):
+        if hasattr(self.DL.attacker, 'result') and self.DL.attacker.result is not None:
             print(f'iter:{iter} Attack result: {str(self.DL.attacker.result)} {str(self.DL.attacker.mem_result)}')
             self.logger.info(f'Attack result:{str(self.DL.attacker.result)} {str(self.DL.attacker.mem_result)}')
 
