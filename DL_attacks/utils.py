@@ -195,7 +195,7 @@ def load_cifar10():
     train_size = len(train_data)
     val_size = len(val_data)
     num_class = 10
-    x_shape = train_data[0][0].shape
+    x_shape = train_data[0][0].shape # (3, 32, 32)
     print(f'train size: {train_size}, val size: {val_size}')
     return train_data, val_data, x_shape, num_class
 

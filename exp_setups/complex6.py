@@ -4,7 +4,7 @@ from . import *
 CDL = DL.Complete
 
 # number of users (nodes)
-nu = 40
+nu = 10
 
 # experiment name
 name = f"complex{nu}"

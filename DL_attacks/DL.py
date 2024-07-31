@@ -31,7 +31,11 @@ class DecentralizedLearning:
             attacker,
             device,
             normal_train_iter,
-            attack_type
+            attack_type,
+            defense_type,
+            cover_try_time,
+            victim_ratio,
+            batch_size
     ):
         
         assert len(train_sets) == n_users
@@ -48,11 +52,13 @@ class DecentralizedLearning:
             self.attacker = attacker(0, make_model, train_sets[0], device)
         else:
             # use agrEvader attacker
-            self.attacker = attacker(0, make_model, train_sets[0], cover_set, device, self.normal_train_iter, attack_type) #! 使用的是trainset[0] and cover set
+            self.attacker = attacker(0, make_model, train_sets[0], cover_set,\
+                                    device, self.normal_train_iter, attack_type, \
+                                    cover_try_time, victim_ratio, batch_size) #! 使用的是trainset[0] and cover set
         self.U[0] = self.attacker
         
         for i in range(1, self.n_users):
-            self.U[i] = user(i, make_model, train_sets[i], device)    
+            self.U[i] = user(i, make_model, train_sets[i], device, defense_type)    
 
     #! 从 networkx 图 (G) 中获取通信拓扑
     def from_nx_graph(
@@ -67,6 +73,10 @@ class DecentralizedLearning:
         device,
         normal_train_iter,
         attack_type,
+        defense_type,
+        cover_try_time,
+        victim_ratio,
+        batch_size,
         shuffle=True,
     ):
         """ Comm. topology from networkx graph """
@@ -83,7 +93,11 @@ class DecentralizedLearning:
             attacker,
             device,
             normal_train_iter,
-            attack_type
+            attack_type,
+            defense_type,
+            cover_try_time,
+            victim_ratio,
+            batch_size
         )
         
         mmap = {} #! 将 NetworkX 图 (G) 的节点映射到用户数组 self.U 的索引
@@ -206,7 +220,7 @@ class DecentralizedLearning:
             # acc_train += _acc_train
 
         avg_result = f'avg train acc: {np.mean(np.array(train_acc_lst)):.4f} avg test acc: {np.mean(np.array(test_acc_lst)):.4f} min train acc: {np.min(np.array(train_acc_lst)):.4f}({np.argmin(np.array(train_acc_lst))}) min test acc: {np.min(np.array(test_acc_lst)):.4f}({np.argmin(np.array(test_acc_lst))})'
-        print(avg_result)
+        # print(avg_result)
         loss_train = loss_train / len(users)
         acc_train = acc_train / len(users)
         
@@ -270,11 +284,16 @@ class Regular15(DecentralizedLearning):
         attacker,
         device,
         normal_train_iter,
-        attack_type
+        attack_type,
+        defense_type,
+        cover_try_time,
+        victim_ratio,
+        batch_size
     ):
         G = nx.random_regular_graph(15, n_users, seed=0) #! 30_15: 0号的neighbor为 1, 4, 5, 7, 8, 10, 12, 15, 20, 21, 22, 23, 25, 26, 29
-        DecentralizedLearning.from_nx_graph(self, G, make_model, train_sets, test_set, cover_set, user, attacker, device, normal_train_iter, attack_type, shuffle=False)
-
+        DecentralizedLearning.from_nx_graph(self, G, make_model, train_sets, test_set, cover_set, \
+                                    user, attacker, device, normal_train_iter, attack_type, defense_type,\
+                                    cover_try_time, victim_ratio, batch_size, shuffle=False)
 
 class Regular20(DecentralizedLearning):
     def setup(
@@ -288,10 +307,16 @@ class Regular20(DecentralizedLearning):
         attacker,
         device,
         normal_train_iter,
-        attack_type
+        attack_type,
+        defense_type,
+        cover_try_time,
+        victim_ratio,
+        batch_size
     ):
         G = nx.random_regular_graph(20, n_users, seed=0) #! 40_20: 0号的neighbor为 1, 4, 6, 9, 16, 17, 18, 19, 20, 21, 22, 24, 25, 27, 28, 32, 33, 34, 36, 38
-        DecentralizedLearning.from_nx_graph(self, G, make_model, train_sets, test_set, cover_set, user, attacker, device, normal_train_iter, attack_type, shuffle=False)
+        DecentralizedLearning.from_nx_graph(self, G, make_model, train_sets, test_set, cover_set, \
+                                    user, attacker, device, normal_train_iter, attack_type, defense_type,\
+                                    cover_try_time, victim_ratio, batch_size, shuffle=False)
    
    
 class Regular25(DecentralizedLearning):
@@ -306,44 +331,62 @@ class Regular25(DecentralizedLearning):
         attacker,
         device,
         normal_train_iter,
-        attack_type
+        attack_type,
+        defense_type,
+        cover_try_time,
+        victim_ratio,
+        batch_size
     ):
         G = nx.random_regular_graph(25, n_users, seed=0) #! 50_25: 0号的neighbor为 1, 2, 3, 6, 7, 10, 12, 13, 15, 18, 19, 20, 23, 25, 28, 30, 31, 32, 33, 34, 35, 38, 39, 43, 44
-        DecentralizedLearning.from_nx_graph(self, G, make_model, train_sets, test_set, cover_set, user, attacker, device, normal_train_iter, attack_type, shuffle=False)
+        DecentralizedLearning.from_nx_graph(self, G, make_model, train_sets, test_set, cover_set, \
+                                    user, attacker, device, normal_train_iter, attack_type, defense_type,\
+                                    cover_try_time, victim_ratio, batch_size, shuffle=False)
              
 
 # 环图
 class Ring(DecentralizedLearning):
     def setup(
-            self,
-            n_users,
-            make_model,
-            train_sets,
-            test_set,
-            cover_set,
-            user,
-            attacker,
-            device,
-            normal_train_iter
+        self,
+        n_users,
+        make_model,
+        train_sets,
+        test_set,
+        cover_set,
+        user,
+        attacker,
+        device,
+        normal_train_iter,
+        attack_type,
+        defense_type,
+        cover_try_time,
+        victim_ratio,
+        batch_size
     ):
         
         G = nx.cycle_graph(n_users)
-        DecentralizedLearning.from_nx_graph(self, G, make_model, train_sets, test_set, cover_set, user, attacker, device, shuffle=False)
+        DecentralizedLearning.from_nx_graph(self, G, make_model, train_sets, test_set, cover_set, \
+                                    user, attacker, device, normal_train_iter, attack_type, defense_type,\
+                                    cover_try_time, victim_ratio, batch_size, shuffle=False)
 
                             
 
 class Torus(DecentralizedLearning):
      def setup(
-            self,
-            n_users,
-            make_model,
-            train_sets,
-            test_set,
-            cover_set,
-            user,
-            attacker,
-            device,
-            normal_train_iter
+        self,
+        n_users,
+        make_model,
+        train_sets,
+        test_set,
+        cover_set,
+        user,
+        attacker,
+        device,
+        normal_train_iter,
+        attack_type,
+        defense_type,
+        cover_try_time,
+        victim_ratio,
+        batch_size
     ):
         
         """ Torus comm. topology. n_users must have a square root """
@@ -353,27 +396,35 @@ class Torus(DecentralizedLearning):
         n = int(n)
         G = nx.grid_graph(dim =[n, n], periodic=True) #! 
         
-        DecentralizedLearning.from_nx_graph(self, G, make_model, train_sets, test_set, cover_set, user, attacker, device, shuffle=False)
+        DecentralizedLearning.from_nx_graph(self, G, make_model, train_sets, test_set, cover_set, \
+                                    user, attacker, device, normal_train_iter, attack_type, defense_type,\
+                                    cover_try_time, victim_ratio, batch_size, shuffle=False)
             
 
 # 完全图
 class Complete(DecentralizedLearning):
     def setup(
-            self,
-            n_users,
-            make_model,
-            train_sets,
-            test_set,
-            cover_set,
-            user,
-            attacker,
-            device,
-            normal_train_iter,
-            attack_type
+        self,
+        n_users,
+        make_model,
+        train_sets,
+        test_set,
+        cover_set,
+        user,
+        attacker,
+        device,
+        normal_train_iter,
+        attack_type,
+        defense_type,
+        cover_try_time,
+        victim_ratio,
+        batch_size
     ):
         
         G = nx.complete_graph(n_users)
-        DecentralizedLearning.from_nx_graph(self, G, make_model, train_sets, test_set, cover_set, user, attacker, device, normal_train_iter, attack_type, shuffle=False)
+        DecentralizedLearning.from_nx_graph(self, G, make_model, train_sets, test_set, cover_set, \
+                                            user, attacker, device, normal_train_iter, attack_type, defense_type,\
+                                            cover_try_time, victim_ratio, batch_size, shuffle=False)
         
 
 # 随机图

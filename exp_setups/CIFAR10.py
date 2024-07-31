@@ -6,8 +6,7 @@ ds_size = 50000
 # model's arch
 model_maker = model.resnet20
 
-# batch size for Distributed SGD
-batch_size = 64 #TODO: 修改batchsize（64）--> ()
+batch_size = 64
     
 # size of the local training set of each user
 def compute_local_training_set_size(nu):

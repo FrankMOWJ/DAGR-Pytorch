@@ -7,6 +7,9 @@ from .ops_on_vars_list import *
 
 class User:
     def __init__(self, name, make_model, train_set, device, byz=None):
+        if name == 1:
+            print(f'Setting up users...')
+            print(f'defense type: {byz}')
         self.name = name  # 实际上就是user的编号
         self.train_set = train_set
         self.train_set_iter = iter(self.train_set)  # 使用iter对象
@@ -29,8 +32,8 @@ class User:
         self.history = []
         self.iter = 0
         
-        # self.byz = 'trim'  # 鲁棒机制(None, 'trim', 'median')
-        self.byz = None
+        # self.byz = 'trim'  # 鲁棒机制('None', 'trim', 'median')
+        self.byz = byz
         
         self.device = device
         self.model = self.model.to(device)
@@ -49,7 +52,6 @@ class User:
         """ Local training step """
         
         # get data
-        # for i in range(len(self.train_set_iter)):
         try:
             x, y = next(self.train_set_iter) # user 一次训练一个batch也即（64个sample）
         except StopIteration:  # 当迭代器迭代完所有数据时重置
@@ -144,7 +146,8 @@ class User:
         nups = len(self.model_update_buffer)
         new_theta = [torch.zeros_like(param) for param in self.model.parameters()]
 
-        if self.byz is None:
+        if self.byz == 'None' or self.byz is None:
+            # print('navie aggregation')
             for theta in self.model_update_buffer.values():
                 for i, param in enumerate(theta):
                     new_theta[i] += param
