@@ -394,3 +394,40 @@ class Random(DecentralizedLearning):
         G = nx.erdos_renyi_graph(n_users, 0.1, seed=0)
         DecentralizedLearning.from_nx_graph(self, G, make_model, train_sets, test_set, cover_set, user, attacker, device, shuffle=False)
         
+# small world graph
+class SmallWorld(DecentralizedLearning):
+    def setup(
+            self,
+            n_users,
+            make_model,
+            train_sets,
+            test_set,
+            cover_set,
+            user,
+            attacker,
+            device,
+            normal_train_iter
+    ):
+        
+        G = nx.watts_strogatz_graph(n_users, 8, 0.1, seed=0) #! 0号邻居为:1，2，3，4，26，27，28，29
+        DecentralizedLearning.from_nx_graph(self, G, make_model, train_sets, test_set, cover_set, user, attacker, device, shuffle=False)
+            
+        
+# ER随机图
+class ER(DecentralizedLearning):
+    def setup(
+            self,
+            n_users,
+            make_model,
+            train_sets,
+            test_set,
+            cover_set,
+            user,
+            attacker,
+            device,
+            normal_train_iter
+    ):
+        
+        G = nx.erdos_renyi_graph(n_users, 0.5, seed=0) #! 0号邻居为:3，4，6，8，9，13，16，21，25，27
+        DecentralizedLearning.from_nx_graph(self, G, make_model, train_sets, test_set, cover_set, user, attacker, device, shuffle=False)
+    
