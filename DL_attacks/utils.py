@@ -4,7 +4,73 @@ import numpy as np
 import functools
 from copy import deepcopy
 import torch
+import pandas as pd
 
+class Location30(Dataset):
+    def __init__(self, file_path, train=True, train_test_ratio=0.5, label_column=0, seed=42):
+        # Set the seed for reproducibility
+        np.random.seed(seed)
+        
+        self.data_frame = pd.read_csv(file_path, header=None)
+        self.labels = torch.tensor(self.data_frame[label_column].to_numpy(), dtype=torch.int64) - 1
+        self.data_frame.drop(label_column, inplace=True, axis=1)
+        self.data = torch.tensor(self.data_frame.to_numpy(), dtype=torch.float)
+        
+        dataset_size = len(self.labels)
+        split = int(np.floor(train_test_ratio * dataset_size))
+        
+        indices = list(range(dataset_size))
+        np.random.shuffle(indices)  # Shuffle indices to ensure random split
+        
+        train_indices = indices[:split]
+        test_indices = indices[split:]
+        
+        if train:
+            self.data_indices = train_indices
+        else:
+            self.data_indices = test_indices
+    
+    def __len__(self):
+        return len(self.data_indices)
+    
+    def __getitem__(self, idx):
+        actual_idx = self.data_indices[idx]
+        image = self.data[actual_idx]
+        label = self.labels[actual_idx]
+        return image, label
+
+class Purchase100(Dataset):
+    def __init__(self, file_path, train=True, train_test_ratio=0.5, seed=42):
+        # Set the seed for reproducibility
+        np.random.seed(seed)
+        
+        data = np.load(file_path)
+        self.data = torch.tensor(data['features'], dtype=torch.float)
+        self.labels = torch.tensor(data['labels'], dtype=torch.int64)
+        
+        dataset_size = len(self.labels)
+        split = int(np.floor(train_test_ratio * dataset_size))
+        
+        indices = list(range(dataset_size))
+        np.random.shuffle(indices)  # Shuffle indices to ensure random split
+        
+        train_indices = indices[:split]
+        test_indices = indices[split:]
+        
+        if train:
+            self.data_indices = train_indices
+        else:
+            self.data_indices = test_indices
+    
+    def __len__(self):
+        return len(self.data_indices)
+    
+    def __getitem__(self, idx):
+        actual_idx = self.data_indices[idx]
+        image = self.data[actual_idx]
+        label = self.labels[actual_idx]
+        return image, label
+    
 def make_uniform_dataset_users(data, num_users=1, local_dataset_size=10000) -> list[TensorDataset]:
     data_loader = DataLoader(data, batch_size=local_dataset_size, shuffle=True)
     datasets = []
@@ -34,7 +100,7 @@ def uniform_sample_from_user(datasets, num_member=500) -> TensorDataset:
     return TensorDataset(sampled_x, sampled_y)
 
 def get_attack_member_set(data, target_user_id=1, num_member=500):
-    target_data = data[target_user_id]
+    target_data = data[target_user_id-1]
     indices = torch.randperm(len(target_data))[:num_member]
     member_set = Subset(target_data, indices)
     return member_set
@@ -199,7 +265,26 @@ def load_cifar10():
     print(f'train size: {train_size}, val size: {val_size}')
     return train_data, val_data, x_shape, num_class
 
+# load location30
+def load_location30():
+    path = r'./dataset/bangkok'
+    num_class = 30 
+    train_data = Location30(path, train=True, train_test_ratio=0.5, label_column=0, seed=42)
+    val_data = Location30(path, train=False, train_test_ratio=0.5, label_column=0, seed=42)
+    x_shape = train_data[0][0].shape
+    
+    return train_data, val_data, x_shape, num_class
 
+def load_purchase100():
+    path = r'./dataset/purchase100.npz'
+    num_class = 100
+    train_data = Purchase100(path, train=True, train_test_ratio=0.5, seed=42)
+    val_data = Purchase100(path, train=False, train_test_ratio=0.5, seed=42)
+    x_shape = train_data[0][0].shape
+    
+    return train_data, val_data, x_shape, num_class
+    
+    
 def shuffle_labels(victim_set):
     """
     Shuffle labels in the given dataset.
@@ -250,40 +335,54 @@ def get_random_coverset(cover_set, num_cover_sam=500):
     
 # Usage
 if __name__ == "__main__":
-    num_users = 10
-    size_local_ds = 1000
-    batch_size = 32
-    size_testset = 10000
-    type_partition = 0
-    num_members = 500
-    num_non_members = 500
-    num_cover = 1000
+    # num_users = 10
+    # size_local_ds = 1000
+    # batch_size = 32
+    # size_testset = 10000
+    # type_partition = 0
+    # num_members = 500
+    # num_non_members = 500
+    # num_cover = 1000
 
 
-    train_sets, test_set, cover_set, x_shape, num_class = setup_data(
-        lambda: load_cifar10(),
-        num_users,
-        size_local_ds,
-        batch_size,
-        size_testset,
-        type_partition,
-        num_members,
-        num_non_members,
-        num_cover
-    )
+    # train_sets, test_set, cover_set, x_shape, num_class = setup_data(
+    #     lambda: load_cifar10(),
+    #     num_users,
+    #     size_local_ds,
+    #     batch_size,
+    #     size_testset,
+    #     type_partition,
+    #     num_members,
+    #     num_non_members,
+    #     num_cover
+    # )
     
-    print(f'attacker dataset size: {len(train_sets[0])}\nnormal user dataset size: {len(train_sets[1])}')
-    print(f'cover set size: {len(cover_set)}')
+    # print(f'attacker dataset size: {len(train_sets[0])}\nnormal user dataset size: {len(train_sets[1])}')
+    # print(f'cover set size: {len(cover_set)}')
     
-    print(type(train_sets[0]), type(train_sets[1]))
-    member_set, non_member_set = split_train_set(train_sets[0])
-    attacker_train_set = shuffle_labels(train_sets[0])
+    # print(type(train_sets[0]), type(train_sets[1]))
+    # member_set, non_member_set = split_train_set(train_sets[0])
+    # attacker_train_set = shuffle_labels(train_sets[0])
     
-    print(len(attacker_train_set), len(member_set), len(non_member_set))
+    # print(len(attacker_train_set), len(member_set), len(non_member_set))
     
-    cur_cover_set = get_random_coverset(cover_set, 500)
-    print(f'cur cover loader size: {len(cur_cover_set)}')
+    # cur_cover_set = get_random_coverset(cover_set, 500)
+    # print(f'cur cover loader size: {len(cur_cover_set)}')
     
-    print(f'x shape: {x_shape}')
+    # print(f'x shape: {x_shape}')
     
-    print(f'user data loader len: {len(train_sets[1])}')
+    # print(f'user data loader len: {len(train_sets[1])}')
+    # train_dataset, test_dataset, x_shape, num_class = load_location30()
+    # train_loader = DataLoader(train_dataset, batch_size=2, shuffle=True, num_workers=4)
+    # test_loader = DataLoader(test_dataset, batch_size=2, shuffle=False, num_workers=4)
+    
+    # print(f'train size: {len(train_loader)}, test size: {len(test_loader)} x shape: {x_shape}')
+    # for images, labels in train_loader:
+    #     print('Train batch:', images.shape, labels.shape)
+    #     break
+    
+    train_dataset, test_dataset, x_shape, num_class = load_purchase100()
+    train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=4)
+    test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=4)
+    
+    print(f'train size: {len(train_loader)}, test size: {len(test_loader)} x shape: {x_shape}')

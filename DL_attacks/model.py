@@ -57,15 +57,27 @@ class ResNet20(nn.Module):
         x = self.fc(x)
         return x
 
-class LinearCIFAR10(nn.Module):
-    def __init__(self):
-        super(LinearCIFAR10, self).__init__()
-        self.fc1 = nn.Linear(3 * 32 * 32, 10)  # 3*32*32是输入的展平向量维度，10是CIFAR-10的类别数
+class LinearModel(torch.nn.Module):
+    """
+    The model to handel Location100 dataset
+    """
+
+    def __init__(self, input_shape, num_classes):
+        super(LinearModel, self).__init__()
+        self.input_layer = torch.nn.Sequential(
+            torch.nn.Linear(input_shape[0], 512),
+            torch.nn.ReLU(),
+        )
+        self.output_layer = torch.nn.Sequential(
+            torch.nn.Linear(512, 128),
+            torch.nn.ReLU(),
+            torch.nn.Linear(128, num_classes),
+        )
 
     def forward(self, x):
-        x = x.view(-1, 3 * 32 * 32)  # 展平输入
-        x = self.fc1(x)
-        return x
+        out = self.input_layer(x)
+        out = self.output_layer(out)
+        return out
     
 def binary_accuracy(label, p):
     predicted = torch.argmax(p, dim=1)
@@ -78,12 +90,7 @@ def resnet20(input_shape, output_shape, init_lr, step_slr: list, pretrain=False,
         if checkpoint_path is None:
             raise ValueError('pretrain need checkpoint path')
         else:
-            ckpt = torch.load(checkpoint_path)
-            for key, value in ckpt['net'].items():
-                if 'module.' in key:
-                    key = key.replace('module.', '')
-            print(ckpt['net'].keys())
-                    
+            ckpt = torch.load(checkpoint_path)  
             model.load_state_dict(ckpt['net'])
             print('load pre-trained checkpoint successfully')
     loss = nn.CrossEntropyLoss()
@@ -92,23 +99,38 @@ def resnet20(input_shape, output_shape, init_lr, step_slr: list, pretrain=False,
     
     return model, loss, optimizer_fn, scheduler_fn, binary_accuracy
 
-def Linear(input_shape, output_shape, init_lr, step_slr: list, bn=True):
-    model = ResNet20(input_shape, output_shape, bn)
-    # model = torchvision.models.resnet18(pretrained=False, num_classes=10)
+def location30(input_shape, output_shape, init_lr, step_slr: list, pretrain=False, checkpoint_path=None, bn=True):
+    model = LinearModel((446,), 30)
     loss = nn.CrossEntropyLoss()
-    optimizer_fn = lambda model: optim.SGD(model.parameters(), lr=init_lr, momentum=0.9)
+    optimizer_fn = lambda model: optim.Adam(model.parameters(), lr=init_lr)
+    scheduler_fn = lambda optimizer: MultiStepLR(optimizer, step_slr, gamma=0.1)
+    
+    return model, loss, optimizer_fn, scheduler_fn, binary_accuracy
+
+def purchase100(input_shape, output_shape, init_lr, step_slr: list, pretrain=False, checkpoint_path=None, bn=True):
+    model = LinearModel((100,), 100)
+    loss = nn.CrossEntropyLoss()
+    optimizer_fn = lambda model: optim.Adam(model.parameters(), lr=init_lr)
     scheduler_fn = lambda optimizer: MultiStepLR(optimizer, step_slr, gamma=0.1)
     
     return model, loss, optimizer_fn, scheduler_fn, binary_accuracy
 
 
 if __name__ == "__main__":
-    input_shape = (1, 3, 32, 32)
-    output_shape = 10
-    model, *out = resnet20(input_shape=input_shape, output_shape=output_shape, init_lr=0.1, step_slr=10)
+    # input_shape = (1, 3, 32, 32)
+    # output_shape = 10
+    # model, *out = resnet20(input_shape=input_shape, output_shape=output_shape, init_lr=0.1, step_slr=10)
+    # model = model.cuda()
+    # input = torch.rand(size=input_shape).cuda()
+    # output = model(input)
+    # print(output.shape)
+    # print(output.device)
+    
+    input_shape = (446)
+    output_shape = 30
+    model, *out = location30(input_shape=input_shape, output_shape=output_shape, init_lr=0.1, step_slr=10)
     model = model.cuda()
-    input = torch.rand(size=input_shape).cuda()
+    input = torch.rand(size=(5, 446)).cuda()
     output = model(input)
     print(output.shape)
     print(output.device)
-    
