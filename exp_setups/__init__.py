@@ -31,6 +31,8 @@ G = None
 victim_ratio = 0.7
 cover_try_time = 5
 max_num_iter = 800
+num_member = 500
+num_non_member = 500
 
 # pretrain
 pretrain = False

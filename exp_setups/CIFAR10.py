@@ -20,8 +20,6 @@ load_dataset = utils.load_cifar10
 
 # victim and cover set
 attacker_batch_size = 256
-num_member = 500
-num_non_member = 500
 
 # learning-rate scheduler steps to reach consensus (it may vary based on the topology)  
 lrd = [300, 400, 500, 600]

@@ -72,14 +72,16 @@ def get_parser(**parser_kwargs):
         "--victim_ratio",
         help="customized victim parameter weight when combine victim and cover params, \
             used different ratio from the config file",
-        default=None
+        default=None,
+        type=float
     )
     
     parser.add_argument(
         "-m",
         "--member",
         help="Number of member/ non-member",
-        default=None
+        default=None,
+        type=int
     )
     
     parser.add_argument(
@@ -89,9 +91,10 @@ def get_parser(**parser_kwargs):
     )
     
     parser.add_argument(
-        "--iid",
+        "--dist",
         help="iid or non-iid setting",
-        action="store_true"
+        default='non-iid',
+        type=str
     )
     
     parser.add_argument(
@@ -130,7 +133,7 @@ if __name__ == '__main__':
     ds_setup_file = args.data
     graph_setup_file = args.graph
     
-    iid = True if args.iid else False
+    data_distribution = args.dist
     setting = args.setting
     attack_type = args.attack # norm, unitnorm, angle, None
     defense_type = args.defense # None, trimX, median
@@ -148,7 +151,7 @@ if __name__ == '__main__':
     dataset = Cds.dsk
     
     # acc logger for train acc, test acc and attack acc
-    acc_log_name = f'{dataset}_{Ctop.name}_{setting}_iid{iid}_{attack_type}_{defense_type}_bs{Cds.attacker_batch_size}_r{victim_ratio}_NIter{Cds.normal_train_iter}_T{cover_try_time}_{timestamp}.txt'
+    acc_log_name = f'{dataset}_{Ctop.name}_{setting}_{data_distribution}_{attack_type}_{defense_type}_bs{Cds.attacker_batch_size}_r{victim_ratio}_NIter{Cds.normal_train_iter}_T{cover_try_time}_{timestamp}.txt'
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
     acc_log_path = os.path.join(args.output_dir, acc_log_name)
@@ -166,7 +169,7 @@ if __name__ == '__main__':
             size_local_ds,
             Cds.user_batch_size,
             Cds.size_testset,
-            0 if iid else 1 # iid: 0, non_iid: 1
+            0 if data_distribution == 'iid' else 1 # iid: 0, non_iid: 1
         )
     else:
         # NOTE: add cover set
@@ -176,7 +179,7 @@ if __name__ == '__main__':
             size_local_ds,
             Cds.user_batch_size,
             Cds.size_testset,
-            0 if iid else 1, # iid: 0, non_iid: 1
+            0 if data_distribution == 'iid' else 1, # iid: 0, non_iid: 1
             num_member, num_member, size_local_ds,
             setting
         )
@@ -210,7 +213,7 @@ if __name__ == '__main__':
     acc_logger.logger.info(f'   Attacker Batch size = {Cds.attacker_batch_size}')
     acc_logger.logger.info(f'   Attack = {attack_type}')
     acc_logger.logger.info(f'   Defense = {defense_type}')
-    acc_logger.logger.info(f'   iid = {iid}')
+    acc_logger.logger.info(f'   data distribution = {data_distribution}')
     acc_logger.logger.info(f'   Init LR = {init_lr}')
     acc_logger.logger.info(f'   LR Decay = {Cds.lrd}')
     acc_logger.logger.info(f'   Max Iter = {Ctop.max_num_iter}')
