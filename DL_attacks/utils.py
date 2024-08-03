@@ -1,3 +1,4 @@
+import random
 from torch.utils.data import Dataset, DataLoader, random_split, TensorDataset, ConcatDataset, Subset
 from torchvision import datasets, transforms
 import numpy as np
@@ -71,7 +72,7 @@ class Purchase100(Dataset):
         label = self.labels[actual_idx]
         return image, label
     
-def make_uniform_dataset_users(data, num_users=1, local_dataset_size=10000) -> list[TensorDataset]:
+def make_uniform_dataset_users(data, num_users=1, local_dataset_size=10000):
     data_loader = DataLoader(data, batch_size=local_dataset_size, shuffle=True)
     datasets = []
     for i, (x, y) in enumerate(data_loader):
@@ -79,6 +80,53 @@ def make_uniform_dataset_users(data, num_users=1, local_dataset_size=10000) -> l
         user_data = TensorDataset(x, y)
         datasets.append(user_data)
     return datasets
+
+def make_multiform_dataset_users(data, num_class, num_users=1, batch_size=64, bias=0.5):
+    num_outputs = num_class
+    num_workers = num_users
+    
+    bias_weight = bias
+    other_group_size = (1-bias_weight) / (num_outputs-1)
+    worker_per_group = num_workers / (num_outputs) # num_worker=nuser, num_ouputs=nclass
+    
+    each_worker_data = [[] for _ in range(num_workers)]
+    each_worker_label = [[] for _ in range(num_workers)] 
+    print(len(each_worker_data))
+    
+    train_data = DataLoader(data, batch_size=batch_size, shuffle=True)
+    
+    for _, (data, label) in enumerate(train_data):
+        for (x, y) in zip(data, label):
+            upper_bound = (y.item()) * (1-bias_weight) / (num_outputs-1) + bias_weight # default=0.5
+            lower_bound = (y.item()) * (1-bias_weight) / (num_outputs-1)
+            rd = np.random.random_sample()
+            if rd > upper_bound:
+                worker_group = int(np.floor((rd - upper_bound) / other_group_size)+y.item()+1)
+            elif rd < lower_bound:
+                worker_group = int(np.floor(rd / other_group_size))
+            else:
+                worker_group = y.item()
+
+            # assign a data point to a worker
+            rd = np.random.random_sample()
+            selected_worker = int(worker_group*worker_per_group + int(np.floor(rd*worker_per_group)))
+            if (bias_weight == 0): selected_worker = np.random.randint(num_workers)
+            each_worker_data[selected_worker].append(x)
+            each_worker_label[selected_worker].append(y)
+
+    # concatenate the data for each worker
+    each_worker_data = [(torch.stack(each_worker, dim=0)).squeeze(0) for each_worker in each_worker_data] 
+    each_worker_label = [(torch.stack(each_worker, dim=0)).squeeze(0) for each_worker in each_worker_label]
+    
+    # random shuffle the workers
+    random_order = np.random.RandomState(seed=42).permutation(num_workers)
+    each_worker_data = [each_worker_data[i] for i in random_order]
+    each_worker_label = [each_worker_label[i] for i in random_order]
+    
+    # 将each_worker_data和each_worker_label合并为TensorDataset
+    train_sets = [TensorDataset(each_worker_data[i], each_worker_label[i]) for i in range(num_workers)]
+
+    return train_sets
 
 def uniform_sample_from_user(datasets, num_member=500) -> TensorDataset:
     sample_per_user = num_member // len(datasets)
@@ -145,6 +193,9 @@ def setup_data_without_attack(
     test_set = make_uniform_dataset_users(val_data, 1, size_testset)[0]
     if type_partition == 0:
         train_sets = make_uniform_dataset_users(train_data, num_users, size_local_ds)
+    else:
+        train_sets = make_multiform_dataset_users(train_data, num_class, num_users, batch_size)
+        
     train_sets = [DataLoader(train_set, batch_size=batch_size) for train_set in train_sets]
     test_set = DataLoader(test_set, batch_size=batch_size)
     return train_sets, test_set, None, x_shape, num_class
@@ -155,14 +206,13 @@ def setup_data(
     size_local_ds,
     batch_size,
     size_testset,
-    type_partition,
+    type_partition, # 0 if iid, 1 non-iid
     num_member=500,
     num_non_member=500,
     num_cover=1000,
     setting='s1'
 ):
-    train_data, val_data, x_shape, num_class = load_dataset_fn()
-
+    train_data, val_data, x_shape, num_class = load_dataset_fn() # train_data已经是shuffle过的
     train_data, cover_data = random_split(train_data, [len(train_data) - num_cover, num_cover])
     cover_set = get_cover_set(cover_data, num_cover)
 
@@ -172,49 +222,59 @@ def setup_data(
     non_member_set = get_attack_non_member_set(val_data, num_non_member)
     
     if type_partition == 0:
-        train_sets = make_uniform_dataset_users(train_data, num_users - 1, size_local_ds)
-        if setting == 's1':
-            # get member from user 1 by default
-            mem_set = get_attack_member_set(train_sets, target_user_id=1, num_member=num_member)
-        elif setting == 's2':
-            # get member from user 11(non-neigh)
-            mem_set = get_attack_member_set(train_sets, target_user_id=11, num_member=num_member)
-        elif setting == 's3':
-            # get member from user 1 and user 20(both neigh)
-            mem_set1 = get_attack_member_set(train_sets, target_user_id=1, num_member=num_member//2)
-            mem_set2 = get_attack_member_set(train_sets, target_user_id=20, num_member=num_member-num_member//2)
-            mem_set = Change2TensorDataset(ConcatDataset([mem_set1, mem_set2]))
-        elif setting == 's4':
-            # get member from user 11 and user 14(bother non-neigh)
-            mem_set1 = get_attack_member_set(train_sets, target_user_id=11, num_member=num_member//2)
-            mem_set2 = get_attack_member_set(train_sets, target_user_id=14, num_member=num_member-num_member//2)
-            mem_set = Change2TensorDataset(ConcatDataset([mem_set1, mem_set2]))
-        elif setting == 's5':
-            # get member from user 1(neigh) and user 11(non-neigh)
-            mem_set1 = get_attack_member_set(train_sets, target_user_id=1, num_member=num_member//2)
-            mem_set2 = get_attack_member_set(train_sets, target_user_id=11, num_member=num_member-num_member//2)
-            mem_set = Change2TensorDataset(ConcatDataset([mem_set1, mem_set2]))
-        elif setting == 's6':
-            # random sample 500 training sample from training data
-            mem_set = uniform_sample_from_user(train_sets, num_member=num_member)
+        train_sets = make_uniform_dataset_users(train_data, num_users - 1, size_local_ds)        
+    else:
+        train_sets = make_multiform_dataset_users(train_data, num_class, num_users - 1, batch_size)        
+        
+        # # 统计每个train_set的label分布
+        # for i in range(len(train_sets)):
+        #     labels = {}
+        #     for x, y in train_sets[i]:
+        #         if int(y) in labels:
+        #             labels[int(y)] += 1
+        #         else:
+        #             labels[int(y)] = 1
+        #     print('user', i+1)
+        #     for label, count in labels.items():
+        #         print(f"Label {label}: {count} instances")
             
-        else:
-            raise Exception()
-        
-        # cover_set = train_sets[0]
-        # train_sets = train_sets[1:]
-        train_sets = [DataLoader(train_set, batch_size=batch_size) for train_set in train_sets]
-        attacker_set = ConcatDataset([mem_set, non_member_set])
-        attacker_set = Change2TensorDataset(attacker_set)
-        assert len(attacker_set) == num_member + num_non_member, f'num_mem={num_member},num_non_mem={num_non_member}, but actual attack set len={len(attacker_set)}'
-        print(f'setting: {setting} attacker member set: {len(mem_set)}, non-member set: {len(non_member_set)}, cover set: {len(cover_set)}')
-        assert len(train_sets) == num_users - 1, f'user train set allocate fail, len should be {num_users-1} but {len(train_sets)}'
-        train_sets = [attacker_set] + train_sets
-        assert len(train_sets) == num_users, f'attacker train set have not be added'
-        
+    if setting == 's1':
+        # get member from user 1 by default
+        mem_set = get_attack_member_set(train_sets, target_user_id=1, num_member=num_member)    
+    elif setting == 's2':
+        # get member from user 11(non-neigh)
+        mem_set = get_attack_member_set(train_sets, target_user_id=11, num_member=num_member)
+    elif setting == 's3':
+        # get member from user 1 and user 20(both neigh)
+        mem_set1 = get_attack_member_set(train_sets, target_user_id=1, num_member=num_member//2)
+        mem_set2 = get_attack_member_set(train_sets, target_user_id=20, num_member=num_member-num_member//2)
+        mem_set = Change2TensorDataset(ConcatDataset([mem_set1, mem_set2]))
+    elif setting == 's4':
+        # get member from user 11 and user 14(bother
+        mem_set1 = get_attack_member_set(train_sets, target_user_id=11, num_member=num_member//2)
+        mem_set2 = get_attack_member_set(train_sets, target_user_id=14, num_member=num_member-num_member//2)
+        mem_set = Change2TensorDataset(ConcatDataset([mem_set1, mem_set2]))
+    elif setting == 's5':
+        # get member from user 1(neigh) and user 11(non-neigh)
+        mem_set1 = get_attack_member_set(train_sets, target_user_id=1, num_member=num_member//2)
+        mem_set2 = get_attack_member_set(train_sets, target_user_id=11, num_member=num_member-num_member//2)
+        mem_set = Change2TensorDataset(ConcatDataset([mem_set1, mem_set2]))
+    elif setting == 's6':
+        # random sample 500 training sample from training data
+        mem_set = uniform_sample_from_user(train_sets, num_member=num_member)
     else:
         raise Exception()
+        
+    train_sets = [DataLoader(train_set, batch_size=batch_size) for train_set in train_sets]
+    attacker_set = ConcatDataset([mem_set, non_member_set])
+    attacker_set = Change2TensorDataset(attacker_set)
+    assert len(attacker_set) == num_member + num_non_member, f'num_mem={num_member},num_non_mem={num_non_member}, but actual attack set len={len(attacker_set)}'
+    print(f'setting: {setting} attacker member set: {len(mem_set)}, non-member set: {len(non_member_set)}, cover set: {len(cover_set)}')
+    assert len(train_sets) == num_users - 1, f'user train set allocate fail, len should be {num_users-1} but {len(train_sets)}'
+    train_sets = [attacker_set] + train_sets
+    assert len(train_sets) == num_users, f'attacker train set have not be added'
 
+        
     return train_sets, test_set, cover_set, x_shape, num_class
 
 
@@ -263,6 +323,10 @@ def load_cifar10():
     num_class = 10
     x_shape = train_data[0][0].shape # (3, 32, 32)
     print(f'train size: {train_size}, val size: {val_size}')
+    
+    # for i in range(50):
+    #     print(train_data[i][1])
+    
     return train_data, val_data, x_shape, num_class
 
 # load location30
