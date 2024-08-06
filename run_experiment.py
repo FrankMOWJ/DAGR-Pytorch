@@ -151,7 +151,7 @@ if __name__ == '__main__':
     dataset = Cds.dsk
     
     # acc logger for train acc, test acc and attack acc
-    acc_log_name = f'{dataset}_{Ctop.name}_{setting}_{data_distribution}_{attack_type}_{defense_type}_bs{Cds.attacker_batch_size}_r{victim_ratio}_NIter{Cds.normal_train_iter}_T{cover_try_time}_{timestamp}.txt'
+    acc_log_name = f'{dataset}_{Ctop.name}_{setting}_{data_distribution}_{attack_type}_{defense_type}_mem{num_member}_bs{Cds.attacker_batch_size}_r{victim_ratio}_NIter{Cds.normal_train_iter}_T{cover_try_time}_seed{args.seed}_{timestamp}.txt'
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
     acc_log_path = os.path.join(args.output_dir, acc_log_name)
@@ -204,6 +204,7 @@ if __name__ == '__main__':
     acc_logger = acc_logger(Ctop, DL, acc_log_path)
     # log setting 
     acc_logger.logger.info('************* DL Setting *************')
+    acc_logger.logger.info(f'   Seed = {args.seed}')
     acc_logger.logger.info(f'   Setting = {setting}')
     acc_logger.logger.info(f'   Graph = {Ctop.name}')
     acc_logger.logger.info(f'   Number of Attacker = {num_attack_user}')

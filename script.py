@@ -1,25 +1,29 @@
 import os
 
 
-dataset = ['Purchase100', 'Location30']   # 'CIFAR10', 'Purchase100', 'Location30'
+dataset = ['Purchase100']   # 'CIFAR10', 'Purchase100', 'Location30'
 
-seed = [42, 3407]
+setting = ['s6']
+ 
+seed = [3407] # 42 差一点
 
-lr = [0.1]
+lr = [0.01]
 
 byz_type = ['trim', 'median']  # 'trim', 'median'
 attack_type = ['norm', 'unitnorm', 'angle']
 
 graph = ['regular30_15', 'er30', 'smallworld30']
 
-num_member = [200, 300, 500]
-r = [0.7, 0.8, 0.9]
+attacker_bs = [128, 256, 512]
+normal_user_bs = [64, 128, 256]
+num_member = [300, 500]
+r = [0.7] # , 0.8, 0.9
 
 gpu = [0]
 
 distirbution = ['iid', 'non-iid']
 
-output_dir = './new_output'
+output_dir = f'./Purchase100_output'
 
 
 for each_seed in seed:

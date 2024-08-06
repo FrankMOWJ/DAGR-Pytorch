@@ -18,6 +18,9 @@ size_testset = 124992
 
 load_dataset = utils.load_purchase100
 
+# initial learning rate
+init_lr = 0.01
+
 # victim and cover set
 attacker_batch_size = 256
 

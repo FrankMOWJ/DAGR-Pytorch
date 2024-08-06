@@ -45,9 +45,6 @@ graph_properties = {}
 # is it an active attack? #! agrevader attack is active
 active = False
 
-# initial learning rate
-init_lr = 0.1
-
 # patience early stopping
 patience = 10
 # when to run MIAs
