@@ -21,6 +21,8 @@ load_dataset = utils.load_location30
 # victim and cover set
 attacker_batch_size = 256
 
+# initial learning rate
+init_lr = 0.01
 
 # learning-rate scheduler steps to reach consensus (it may vary based on the topology)  
 lrd = [800]

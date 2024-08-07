@@ -1,7 +1,7 @@
 import os
 
 
-dataset = ['Purchase100']   # 'CIFAR10', 'Purchase100', 'Location30'
+dataset = ['Location30']   # 'CIFAR10', 'Purchase100', 'Location30'
 
 setting = ['s6']
  
@@ -19,11 +19,11 @@ normal_user_bs = [64, 128, 256]
 num_member = [300, 500]
 r = [0.7] # , 0.8, 0.9
 
-gpu = [0]
+gpu = [1]
 
-distirbution = ['iid', 'non-iid']
+distirbution = ['non-iid']
 
-output_dir = f'./Purchase100_output'
+output_dir = f'./results-agrevader/Location30_output'
 
 
 for each_seed in seed:
